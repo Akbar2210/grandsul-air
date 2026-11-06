@@ -32,4 +32,4 @@ class Tagihan extends Model
     {
         return $this->hasOne(DigitalSignature::class, 'tagihan_id');
     }
-}
+}  
