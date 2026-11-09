@@ -21,6 +21,7 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Handle an incoming authentication request.
+     * Pengalihan aktor (Admin / Petugas) ditentukan otomatis berdasarkan akun yang masuk.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
@@ -28,7 +29,18 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = Auth::user();
+
+        // Redirect otomatis sesuai peran/role pengguna
+        if ($user->hasRole('admin')) {
+            return redirect()->intended(route('admin.dashboard'));
+        }
+
+        if ($user->hasRole('petugas')) {
+            return redirect()->intended(route('petugas.dashboard'));
+        }
+
+        return redirect()->intended(route('dashboard'));
     }
 
     /**
