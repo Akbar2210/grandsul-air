@@ -1,10 +1,11 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Petugas\DashboardController as PetugasDashboardController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VerifikasiNotaController;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -15,8 +16,10 @@ Route::get('/', function () {
         if ($user->hasRole('petugas')) {
             return redirect()->route('petugas.dashboard');
         }
+
         return redirect()->route('dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -28,8 +31,13 @@ Route::get('/dashboard', function () {
     if ($user->hasRole('petugas')) {
         return redirect()->route('petugas.dashboard');
     }
+
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/verifikasi-nota', VerifikasiNotaController::class)
+    ->middleware('throttle:30,1')
+    ->name('verifikasi-nota');
 
 // Admin Routes (Protected with RBAC role:admin)
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -65,10 +73,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/audit', [AdminDashboardController::class, 'audit'])->name('audit');
 });
 
-// Petugas Routes (Protected with RBAC role:petugas)
-Route::middleware(['auth', 'role:petugas'])->prefix('petugas')->name('petugas.')->group(function () {
+// Petugas Routes (Protected with RBAC role:petugas|admin untuk mendukung simulasi multi-peran)
+Route::middleware(['auth', 'role:petugas|admin'])->prefix('petugas')->name('petugas.')->group(function () {
     Route::get('/dashboard', [PetugasDashboardController::class, 'index'])->name('dashboard');
     Route::get('/pindai', [PetugasDashboardController::class, 'pindai'])->name('pindai');
+    Route::post('/pindai/ocr', [PetugasDashboardController::class, 'ocrScan'])->name('pindai.ocr');
     Route::post('/pindai', [PetugasDashboardController::class, 'store'])->name('pindai.store');
     Route::get('/riwayat', [PetugasDashboardController::class, 'riwayat'])->name('riwayat');
 });

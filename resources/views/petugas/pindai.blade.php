@@ -13,6 +13,7 @@
 
     <!-- Styles & Scripts via Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
         :root {
@@ -83,120 +84,39 @@
         }
     </style>
 </head>
-<body class="bg-[#F1F5F9] font-sans text-[#0B132B] antialiased min-h-screen" x-data="{ sidebarOpen: false }">
+<body class="bg-[#0B132B] font-sans text-[#0B132B] antialiased min-h-screen flex justify-center">
 
-    {{-- Mobile Sidebar Backdrop --}}
-    <div
-        x-show="sidebarOpen"
-        @click="sidebarOpen = false"
-        x-transition:enter="transition-opacity ease-linear duration-200"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition-opacity ease-linear duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        class="fixed inset-0 bg-[#0B132B]/60 backdrop-blur-xs z-40 lg:hidden"
-        style="display: none;"
-    ></div>
+    {{-- ==================== MOBILE WEB APP CONTAINER (MAX 430PX) ==================== --}}
+    <div class="w-full max-w-[430px] min-h-screen bg-[#F1F5F9] flex flex-col justify-between relative shadow-2xl border-x border-[#1E293B]/40 pb-20">
 
-    <div class="min-h-screen flex">
+        <div class="flex-1 flex flex-col min-w-0">
 
-        {{-- ==================== SIDEBAR KIRI ==================== --}}
-        <aside
-            class="fixed inset-y-0 left-0 z-50 w-[250px] bg-[#0F172A] flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0"
-            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-        >
-            <div>
-                {{-- Brand Header --}}
-                <div class="h-20 px-6 flex items-center justify-between border-b border-[#1E293B]">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-[#1E293B] flex items-center justify-center p-2 shadow-xs">
-                            <x-brand-logo class="w-full h-full object-contain" />
-                        </div>
-                        <div>
-                            <span class="text-sm font-bold text-white tracking-wide block leading-none">GRAND SULAWESI</span>
-                            <span class="text-[11px] text-[#64748B] font-medium tracking-tight mt-1 block">Petugas Lapangan</span>
-                        </div>
+            {{-- Topbar Mobile App --}}
+            <header class="px-4 py-3.5 bg-[#0F172A] text-white flex items-center justify-between shrink-0 z-30 rounded-b-2xl shadow-md">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-[#1E293B] border border-[#334155] flex items-center justify-center p-1.5 shrink-0">
+                        <x-brand-logo class="w-full h-full object-contain" />
                     </div>
-                    <button @click="sidebarOpen = false" class="lg:hidden text-[#94A3B8] hover:text-white p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-
-                {{-- Section Label --}}
-                <div class="px-6 pt-6 pb-2 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-                    MAIN MENU
-                </div>
-
-                {{-- Nav Items --}}
-                <nav class="px-3 space-y-1">
-                    <a href="{{ route('petugas.dashboard') }}" class="menu-item-modern">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
-                        </svg>
-                        <span>Daftar Unit</span>
-                    </a>
-
-                    <a href="{{ route('petugas.pindai') }}" class="menu-item-modern active">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/>
-                        </svg>
-                        <span>Pindai Meter</span>
-                    </a>
-
-                    <a href="{{ route('petugas.riwayat') }}" class="menu-item-modern">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <span>Riwayat Data</span>
-                    </a>
-                </nav>
-            </div>
-
-            {{-- Logout Button --}}
-            <div class="p-4 border-t border-[#1E293B]">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#1E293B] text-sm font-medium transition-colors">
-                        <svg class="w-5 h-5 text-[#EF4444]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
-                        </svg>
-                        <span>Keluar</span>
-                    </button>
-                </form>
-            </div>
-        </aside>
-
-        {{-- ==================== WORKSPACE (HANYA 1 LAYAR PENUH TANPA SCROLL DI MOBILE) ==================== --}}
-        <div class="flex-1 lg:pl-[250px] flex flex-col min-w-0 h-[100dvh] lg:h-auto lg:min-h-screen overflow-hidden lg:overflow-visible">
-
-            {{-- Topbar Kompak --}}
-            <header class="h-12 sm:h-14 lg:h-[72px] px-3 sm:px-6 lg:px-8 border-b border-[#CBD5E1]/70 bg-white flex items-center justify-between shrink-0 z-30 shadow-xs">
-                <div class="flex items-center gap-2 sm:gap-3">
-                    <button @click="sidebarOpen = true" class="lg:hidden text-[#0B132B] p-1.5 rounded-lg hover:bg-[#F1F5F9] border border-[#CBD5E1] transition-colors shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
-                    </button>
                     <div>
-                        <h1 class="text-xs sm:text-base lg:text-xl font-bold text-[#0B132B] tracking-tight leading-none">Pindai Meter Air</h1>
-                        <p class="text-[10px] sm:text-xs text-[#5B6785] font-medium mt-0.5">Periode: {{ $periodeStr }}</p>
+                        <h1 class="text-xs font-extrabold text-white tracking-tight leading-none">Pindai Meter Air (OCR)</h1>
+                        <p class="text-[10px] text-[#00F2FE] font-medium mt-0.5">Periode: {{ $periodeStr }}</p>
                     </div>
                 </div>
 
                 {{-- Status & Avatar --}}
-                <div class="flex items-center gap-2 sm:gap-3">
-                    <div class="hidden sm:block text-right">
-                        <span class="text-xs font-bold text-[#0B132B] block leading-tight">{{ Auth::user()->name ?? 'Hendra' }}</span>
-                        <span class="text-[10px] text-[#5B6785] block">Petugas Lapangan</span>
+                <div class="flex items-center gap-2">
+                    <div class="text-right">
+                        <span class="text-[11px] font-bold text-white block leading-tight">{{ Auth::user()->name ?? 'Hendra' }}</span>
+                        <span class="text-[9px] text-[#94A3B8] block">Mobile Petugas</span>
                     </div>
-                    <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#0B132B] text-white font-bold text-[11px] sm:text-xs flex items-center justify-center shadow-xs border border-[#1C2849]">
+                    <div class="w-8 h-8 rounded-xl bg-[#00F2FE] text-[#0B132B] font-extrabold text-xs flex items-center justify-center shadow-xs">
                         {{ strtoupper(substr(Auth::user()->name ?? 'HE', 0, 2)) }}
                     </div>
                 </div>
             </header>
 
-            {{-- Konten Utama (Fit 1 Layar di Mobile, No Scroll) --}}
-            <main class="flex-1 flex flex-col justify-between p-2.5 sm:p-4 lg:p-6 max-w-2xl w-full mx-auto overflow-hidden lg:overflow-visible" x-data="pindaiMeterApp()">
+            {{-- Konten Utama Mobile --}}
+            <main class="flex-1 flex flex-col justify-between p-3 w-full mx-auto" x-data="pindaiMeterApp()">
 
                 {{-- Flash Message Ringkas / Toast --}}
                 @if(session('success') || isset($successMessage))
@@ -287,6 +207,37 @@
                     <input type="file" name="foto_meter" id="foto_meter_hidden" class="hidden" accept="image/*">
                     <input type="file" id="fallback_camera_input" accept="image/*" capture="environment" class="hidden" @change="handleNativeCameraCapture($event)">
 
+                    {{-- ==================== STATUS DOMAIN LOKASI GPS (GEOFENCING 700 METER) ==================== --}}
+                    <div
+                        class="px-3 py-1.5 rounded-xl border text-[11px] flex items-center justify-between gap-2 shrink-0 transition-colors"
+                        :class="isGpsValid ? 'bg-[#DCFCE7] border-[#86EFAC] text-[#166534]' : 'bg-[#FEE2E2] border-[#FCA5A5] text-[#991B1B]'"
+                    >
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span
+                                class="w-2 h-2 rounded-full shrink-0"
+                                :class="isGpsChecking ? 'bg-[#D97706] animate-ping' : (isGpsValid ? 'bg-[#16A34A]' : 'bg-[#DC2626]')"
+                            ></span>
+                            <span class="font-semibold truncate" x-text="gpsStatusMessage"></span>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button
+                                x-show="!isGpsValid"
+                                type="button"
+                                @click="useSimulatedCenterGps()"
+                                class="text-[10px] font-bold px-2 py-0.5 rounded bg-[#0B132B] text-[#00F2FE] cursor-pointer hover:opacity-90"
+                            >
+                                Simulasi di Lokasi
+                            </button>
+                            <button
+                                type="button"
+                                @click="checkGpsLocation()"
+                                class="text-[10px] font-bold underline cursor-pointer hover:opacity-80"
+                            >
+                                Cek Ulang GPS
+                            </button>
+                        </div>
+                    </div>
+
                     {{-- ==================== 2. VIEWFINDER KAMERA (RESPONSIVE FLEXIBLE HEIGHT) ==================== --}}
                     <div class="relative w-full flex-1 min-h-[150px] max-h-[220px] sm:max-h-[260px] bg-[#0B132B] rounded-xl sm:rounded-2xl overflow-hidden flex flex-col items-center justify-center border-2 border-[#1C2849] shadow-xs">
 
@@ -305,9 +256,9 @@
                         {{-- Top Viewfinder HUD --}}
                         <div class="absolute top-2 left-3 right-3 z-20 flex items-center justify-between text-[10px] text-[#94A3B8] font-mono pointer-events-none">
                             <span>AIRGRAND | PINDAI METER</span>
-                            <span class="flex items-center gap-1 text-[#00F2FE]">
-                                <span class="w-1.5 h-1.5 rounded-full bg-[#00F2FE] animate-ping"></span>
-                                OCR TRACKING
+                            <span class="flex items-center gap-1" :class="isGpsValid ? 'text-[#00F2FE]' : 'text-[#EF4444]'">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="isGpsValid ? 'bg-[#00F2FE] animate-ping' : 'bg-[#EF4444]'"></span>
+                                <span x-text="isGpsValid ? 'GPS VALID (' + gpsDistanceMeters + 'm)' : 'DI LUAR RADIUS'"></span>
                             </span>
                         </div>
 
@@ -323,22 +274,52 @@
 
                         <canvas id="camera_canvas" class="hidden"></canvas>
 
-                        {{-- State Siaga (Tombol Buka Kamera) --}}
+                        {{-- State Siaga (Tombol Buka Kamera / Terkunci Jika Di Luar Radius) --}}
                         <div x-show="!cameraStreamActive && !photoPreview" class="text-center z-10 px-4">
-                            <button
-                                type="button"
-                                @click="startLiveCamera()"
-                                class="inline-flex flex-col items-center group cursor-pointer"
-                            >
-                                <div class="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-[#131D3B] border-2 border-[#00F2FE] flex items-center justify-center shadow-[0_0_16px_rgba(0,242,254,0.35)] group-hover:scale-105 group-hover:bg-[#1C2849] transition-all">
-                                    <svg class="w-6 h-6 sm:w-7 sm:h-7 text-[#00F2FE]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/>
-                                    </svg>
+                            <template x-if="isGpsValid">
+                                <div class="flex items-center justify-center gap-5">
+                                    <button
+                                        type="button"
+                                        @click="startLiveCamera()"
+                                        class="inline-flex flex-col items-center group cursor-pointer"
+                                    >
+                                        <div class="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-[#131D3B] border-2 border-[#00F2FE] flex items-center justify-center shadow-[0_0_16px_rgba(0,242,254,0.35)] group-hover:scale-105 group-hover:bg-[#1C2849] transition-all">
+                                            <svg class="w-6 h-6 sm:w-7 sm:h-7 text-[#00F2FE]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/>
+                                            </svg>
+                                        </div>
+                                        <span class="mt-2 text-xs sm:text-sm font-bold text-white group-hover:text-[#00F2FE] transition-colors">Buka Kamera</span>
+                                        <span class="text-[10px] text-[#94A3B8]">Kamera Langsung</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        @click="document.getElementById('fallback_camera_input').click()"
+                                        class="inline-flex flex-col items-center group cursor-pointer"
+                                    >
+                                        <div class="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-[#131D3B] border-2 border-[#94A3B8] group-hover:border-[#00F2FE] flex items-center justify-center group-hover:scale-105 group-hover:bg-[#1C2849] transition-all">
+                                            <svg class="w-6 h-6 sm:w-7 sm:h-7 text-[#CBD5E1] group-hover:text-[#00F2FE]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                                            </svg>
+                                        </div>
+                                        <span class="mt-2 text-xs sm:text-sm font-bold text-white group-hover:text-[#00F2FE] transition-colors">Pilih File Foto</span>
+                                        <span class="text-[10px] text-[#94A3B8]">Upload dari Laptop</span>
+                                    </button>
                                 </div>
-                                <span class="mt-2 text-xs sm:text-sm font-bold text-white group-hover:text-[#00F2FE] transition-colors">Buka Kamera</span>
-                                <span class="text-[10px] text-[#94A3B8]">Arahkan ke angka meter air</span>
-                            </button>
+                            </template>
+
+                            <template x-if="!isGpsValid">
+                                <div class="inline-flex flex-col items-center max-w-xs">
+                                    <div class="w-12 h-12 rounded-full bg-[#1C2849] border-2 border-[#EF4444] flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-[#EF4444]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="mt-2 text-xs sm:text-sm font-bold text-[#FCA5A5]">Kamera Dikunci (Di Luar Radius)</span>
+                                    <span class="text-[10px] text-[#CBD5E1] mt-0.5" x-text="gpsStatusMessage"></span>
+                                </div>
+                            </template>
                         </div>
 
                         {{-- Tombol Shutter Saat Kamera Live --}}
@@ -359,6 +340,15 @@
                             <div x-show="isOcrProcessing" class="ocr-scan-line"></div>
                             <div class="absolute inset-0 bg-[#0B132B]/15"></div>
 
+                            {{-- Indikator Sedang Memindai Teks OCR --}}
+                            <div x-show="isOcrProcessing" class="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-[#0B132B]/90 backdrop-blur-xs px-2.5 py-1.5 rounded-lg border border-[#00F2FE]/50 flex items-center justify-between text-xs text-[#00F2FE] font-semibold">
+                                <span>Memindai teks dari foto (OCR)...</span>
+                                <svg class="w-4 h-4 animate-spin text-[#00F2FE]" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </div>
+
                             {{-- Tombol Foto Ulang --}}
                             <div class="absolute top-2.5 right-2.5 z-30">
                                 <button
@@ -372,12 +362,15 @@
                             </div>
 
                             {{-- Hasil Deteksi OCR --}}
-                            <div x-show="ocrDone" x-transition class="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-[#0B132B]/90 backdrop-blur-xs px-2.5 py-1.5 rounded-lg border border-[#00F2FE]/40 flex items-center justify-between">
-                                <div class="flex items-center gap-1.5 text-xs text-white">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-[#00F2FE]"></span>
-                                    <span>OCR: <strong class="text-[#00F2FE]" x-text="angkaMeter"></strong> m³</span>
+                            <div x-show="ocrDone" x-transition class="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-[#0B132B]/90 backdrop-blur-xs px-2.5 py-1.5 rounded-lg border border-[#00F2FE]/40 flex items-center justify-between gap-2">
+                                <div class="flex flex-col min-w-0">
+                                    <div class="flex items-center gap-1.5 text-xs text-white">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#00F2FE] shrink-0"></span>
+                                        <span class="truncate">Angka: <strong class="text-[#00F2FE]" x-text="angkaMeter || 'Tidak terbaca'"></strong></span>
+                                    </div>
+                                    <span class="text-[10px] text-[#CBD5E1] truncate" x-text="'Teks Foto: ' + (ocrRawText || '—')"></span>
                                 </div>
-                                <span class="text-[10px] text-[#00F2FE] font-bold">98% Akurat</span>
+                                <span class="text-[10px] text-[#00F2FE] font-bold shrink-0" x-text="confidenceScore + '% Akurat'"></span>
                             </div>
                         </div>
                     </div>
@@ -460,7 +453,7 @@
                     <div class="shrink-0">
                         <button
                             type="submit"
-                            :disabled="!angkaMeter || isSubmitting || selectedUnit?.sudah_dicatat"
+                            :disabled="!angkaMeter || isSubmitting || selectedUnit?.sudah_dicatat || !isGpsValid"
                             class="btn-cyan-cta w-full py-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md"
                         >
                             <svg x-show="!isSubmitting" class="w-4 h-4 text-[#0B132B]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -470,7 +463,7 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <span x-text="isSubmitting ? 'Menyimpan...' : 'Selesai & Simpan Pembacaan'"></span>
+                            <span x-text="isSubmitting ? 'Menyimpan...' : (!isGpsValid ? 'Terkunci: Anda Di Luar Radius Lokasi' : 'Selesai & Simpan Pembacaan')"></span>
                         </button>
                     </div>
                 </form>
@@ -491,6 +484,43 @@
 
             </main>
         </div>
+
+        {{-- ==================== BOTTOM NAVIGATION BAR (KHAS MOBILE APP) ==================== --}}
+        <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-[#0F172A] border-t border-[#1E293B] px-4 py-2 flex items-center justify-around z-50 rounded-t-2xl shadow-lg">
+            <a href="{{ route('petugas.dashboard') }}" class="flex flex-col items-center gap-0.5 text-[#94A3B8] hover:text-white font-medium text-[10px]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
+                </svg>
+                <span>Daftar Unit</span>
+            </a>
+
+            <a href="{{ route('petugas.pindai') }}" class="flex flex-col items-center -mt-5">
+                <div class="w-12 h-12 rounded-full bg-[#00F2FE] text-[#0B132B] border-4 border-[#0F172A] flex items-center justify-center shadow-[0_0_16px_rgba(0,242,254,0.45)]">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/>
+                    </svg>
+                </div>
+                <span class="text-[10px] font-bold text-[#00F2FE] mt-0.5">Pindai OCR</span>
+            </a>
+
+            <a href="{{ route('petugas.riwayat') }}" class="flex flex-col items-center gap-0.5 text-[#94A3B8] hover:text-white font-medium text-[10px]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Riwayat</span>
+            </a>
+
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="flex flex-col items-center gap-0.5 text-[#EF4444] font-medium text-[10px] cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
+                    </svg>
+                    <span>Keluar</span>
+                </button>
+            </form>
+        </nav>
     </div>
 
     {{-- Script Interaksi Kamera & OCR --}}
@@ -498,6 +528,7 @@
     const allUnitsData = @json($unitsMapped ?? []);
     const preSelectedUnitId = {{ $selectedUnit?->id ?? 'null' }};
     const preSelectedAngkaLalu = {{ $angkaLalu ?? 4198 }};
+    const geofenceDomain = @json($geofenceConfig ?? ['center_lat' => -4.007468, 'center_lng' => 119.661131, 'radius_meters' => 700.0]);
 
     function pindaiMeterApp() {
         return {
@@ -514,6 +545,7 @@
 
             isOcrProcessing: false,
             ocrDone: false,
+            ocrRawText: '',
             confidenceScore: 98.0,
             isOcrCorrected: false,
 
@@ -522,8 +554,12 @@
             anomali: false,
             anomaliPesan: '',
 
-            latitude: -4.030974,
-            longitude: 119.627435,
+            latitude: '',
+            longitude: '',
+            isGpsChecking: true,
+            isGpsValid: false,
+            gpsDistanceMeters: 0,
+            gpsStatusMessage: 'Mendeteksi lokasi GPS petugas...',
             isSubmitting: false,
 
             init() {
@@ -536,6 +572,89 @@
                 } else if (this.allUnits.length > 0) {
                     this.selectedUnit = this.allUnits[0];
                 }
+
+                this.checkGpsLocation();
+            },
+
+            calculateHaversineMeters(lat1, lng1, lat2, lng2) {
+                const R = 6371000.0;
+                const toRad = (deg) => (deg * Math.PI) / 180.0;
+                const dLat = toRad(lat2 - lat1);
+                const dLng = toRad(lng2 - lng1);
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return Math.round(R * c);
+            },
+
+            checkGpsLocation() {
+                this.isGpsChecking = true;
+                this.gpsStatusMessage = 'Memeriksa radius lokasi GPS...';
+
+                if (!navigator.geolocation) {
+                    this.isGpsChecking = false;
+                    this.isGpsValid = false;
+                    this.gpsStatusMessage = 'Peringatan: Browser tidak mendukung GPS.';
+                    this.stopLiveCamera();
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        this.isGpsChecking = false;
+                        this.latitude = position.coords.latitude;
+                        this.longitude = position.coords.longitude;
+
+                        const dist = this.calculateHaversineMeters(
+                            this.latitude,
+                            this.longitude,
+                            geofenceDomain.center_lat,
+                            geofenceDomain.center_lng
+                        );
+                        this.gpsDistanceMeters = dist;
+
+                        if (dist <= geofenceDomain.radius_meters) {
+                            this.isGpsValid = true;
+                            this.gpsStatusMessage = `Dalam Area Perumahan (${dist} m / batas ${geofenceDomain.radius_meters} m)`;
+                        } else {
+                            this.isGpsValid = false;
+                            this.gpsStatusMessage = `Peringatan: Di luar radius area (${dist} m dari pusat, maks ${geofenceDomain.radius_meters} m)`;
+                            this.stopLiveCamera();
+                        }
+                    },
+                    (error) => {
+                        this.isGpsChecking = false;
+                        this.isGpsValid = false;
+                        this.latitude = '';
+                        this.longitude = '';
+                        this.gpsStatusMessage = 'Peringatan: Izin lokasi GPS ditolak atau tidak aktif. Aktifkan GPS untuk memotret.';
+                        this.stopLiveCamera();
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            },
+
+            useSimulatedCenterGps() {
+                this.isGpsChecking = false;
+                this.latitude = geofenceDomain.center_lat;
+                this.longitude = geofenceDomain.center_lng;
+                this.gpsDistanceMeters = 0;
+                this.isGpsValid = true;
+                this.gpsStatusMessage = `Mode Tes: Titik Pusat Perumahan (0 m / batas ${geofenceDomain.radius_meters} m)`;
+            },
+
+            extractDigitsFromRawText(rawText) {
+                if (!rawText) return null;
+                const match = rawText.match(/\b(\d{3,7})\b/);
+                if (match && match[1]) {
+                    return parseInt(match[1], 10);
+                }
+                const digitsOnly = rawText.replace(/\D+/g, '');
+                if (digitsOnly.length > 0) {
+                    return parseInt(digitsOnly.slice(0, 7), 10);
+                }
+                return null;
             },
 
             toggleUnitSearch() {
@@ -567,6 +686,10 @@
             },
 
             async startLiveCamera() {
+                if (!this.isGpsValid) {
+                    this.checkGpsLocation();
+                    return;
+                }
                 this.photoPreview = null;
                 this.ocrDone = false;
 
@@ -634,11 +757,11 @@
                             dt.items.add(file);
                             document.getElementById('foto_meter_hidden').files = dt.files;
                         } catch (e) {}
+                        this.runOcrProcess();
                     }
                 }, 'image/jpeg', 0.88);
 
                 this.stopLiveCamera();
-                this.runOcrProcess();
             },
 
             handleNativeCameraCapture(event) {
@@ -649,6 +772,7 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     this.photoPreview = e.target.result;
+                    this.runOcrProcess();
                 };
                 reader.readAsDataURL(file);
 
@@ -657,24 +781,65 @@
                     dt.items.add(file);
                     document.getElementById('foto_meter_hidden').files = dt.files;
                 } catch (e) {}
-
-                this.runOcrProcess();
             },
 
-            runOcrProcess() {
+            async runOcrProcess() {
                 this.isOcrProcessing = true;
                 this.ocrDone = false;
+                this.ocrRawText = '';
 
-                setTimeout(() => {
+                try {
+                    if (this.photoFile) {
+                        const formData = new FormData();
+                        formData.append('foto_meter', this.photoFile);
+                        formData.append('latitude', this.latitude);
+                        formData.append('longitude', this.longitude);
+
+                        const response = await fetch("{{ route('petugas.pindai.ocr') }}", {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                'Accept': 'application/json',
+                            },
+                            body: formData,
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            this.ocrRawText = (result.raw_text || '').replace(/\s+/g, ' ').trim();
+                            this.confidenceScore = result.confidence_score || 95.0;
+                            if (result.suggested_digits !== null) {
+                                this.angkaMeter = result.suggested_digits.toString();
+                                this.hitungPemakaian();
+                            }
+                            this.isOcrProcessing = false;
+                            this.ocrDone = true;
+                            return;
+                        }
+                    }
+
+                    // Fallback ke Real OCR di Browser (Tesseract.js) jika API Key Google Vision di .env belum diisi
+                    if (window.Tesseract && this.photoPreview) {
+                        const tesseractResult = await window.Tesseract.recognize(this.photoPreview, 'eng');
+                        const raw = (tesseractResult?.data?.text || '').replace(/\s+/g, ' ').trim();
+                        const conf = Math.round(tesseractResult?.data?.confidence || 85);
+                        this.ocrRawText = raw || 'Tidak ada teks terbaca pada gambar';
+                        this.confidenceScore = conf > 0 ? conf : 85.0;
+
+                        const extracted = this.extractDigitsFromRawText(raw);
+                        if (extracted !== null) {
+                            this.angkaMeter = extracted.toString();
+                            this.hitungPemakaian();
+                        }
+                    }
+                } catch (err) {
+                    console.warn('OCR gagal:', err);
+                    this.ocrRawText = 'Gagal memindai teks otomatis, silakan ketik manual.';
+                } finally {
                     this.isOcrProcessing = false;
                     this.ocrDone = true;
-
-                    const standLalu = parseFloat(this.selectedUnit?.angka_lalu ?? 4198);
-                    const hasilOcr = (standLalu + 26).toString();
-
-                    this.angkaMeter = hasilOcr;
-                    this.hitungPemakaian();
-                }, 1200);
+                }
             },
 
             retakeCamera() {
@@ -734,6 +899,7 @@
             submitForm(formEl) {
                 if (!this.selectedUnit || !this.angkaMeter) return;
                 if (this.selectedUnit.sudah_dicatat) return;
+                if (!this.isGpsValid) return;
 
                 this.isSubmitting = true;
 

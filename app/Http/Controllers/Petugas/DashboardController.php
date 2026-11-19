@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Petugas;
 
 use App\Http\Controllers\Controller;
-use App\Models\UnitHunian;
 use App\Models\BacaanMeter;
+use App\Models\UnitHunian;
+use App\Services\BisnisDigital\OcrMeterService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -38,7 +38,7 @@ class DashboardController extends Controller
             $s = $request->query('search');
             $unitsQuery->where(function ($q) use ($s) {
                 $q->where('nomor_rumah', 'like', "%{$s}%")
-                  ->orWhere('nama_pemilik', 'like', "%{$s}%");
+                    ->orWhere('nama_pemilik', 'like', "%{$s}%");
             });
         }
 
@@ -56,13 +56,14 @@ class DashboardController extends Controller
         ));
     }
 
-    public function pindai(Request $request)
+    public function pindai(Request $request, OcrMeterService $ocrMeterService)
     {
         $user = Auth::user();
         $now = Carbon::now();
         $currentMonth = $now->month;
         $currentYear = $now->year;
         $periodeStr = $now->translatedFormat('F Y');
+        $geofenceConfig = $ocrMeterService->getGeofenceConfig();
 
         // Ambil unit yang dipilih (dari query string ?unit_id=xxx) atau default ke unit pertama yang belum dicatat
         $selectedUnit = null;
@@ -72,7 +73,7 @@ class DashboardController extends Controller
             }])->find($request->query('unit_id'));
         }
 
-        if (!$selectedUnit) {
+        if (! $selectedUnit) {
             // Default pilih unit pertama yang belum dicatat bulan ini (prioritas unit A-03 jika ada)
             $selectedUnit = UnitHunian::with(['blok', 'bacaanMeters' => function ($q) use ($currentMonth, $currentYear) {
                 $q->where('bulan', $currentMonth)->where('tahun', $currentYear);
@@ -93,7 +94,7 @@ class DashboardController extends Controller
                 ->where('tahun', $lastMonth->year)
                 ->first();
 
-            if (!$bacaanBulanLalu) {
+            if (! $bacaanBulanLalu) {
                 $bacaanBulanLalu = BacaanMeter::where('unit_id', $selectedUnit->id)
                     ->orderBy('tahun', 'desc')
                     ->orderBy('bulan', 'desc')
@@ -109,12 +110,12 @@ class DashboardController extends Controller
 
         // List unit untuk dropdown pencarian (dengan status bulan ini)
         $units = UnitHunian::with(['blok', 'bacaanMeters' => function ($q) use ($currentMonth, $currentYear) {
-                $q->where('bulan', $currentMonth)->where('tahun', $currentYear);
-            }])
+            $q->where('bulan', $currentMonth)->where('tahun', $currentYear);
+        }])
             ->when($request->filled('search'), function ($q) use ($request) {
                 $s = $request->query('search');
                 $q->where('nomor_rumah', 'like', "%{$s}%")
-                  ->orWhere('nama_pemilik', 'like', "%{$s}%");
+                    ->orWhere('nama_pemilik', 'like', "%{$s}%");
             })
             ->orderBy('nomor_rumah')
             ->take(60)
@@ -126,19 +127,19 @@ class DashboardController extends Controller
             $isThisSelected = ($selectedUnit && $u->id === $selectedUnit->id);
 
             return [
-                'id'            => $u->id,
-                'nomor_rumah'   => $u->nomor_rumah   ?? '—',
-                'nama_pemilik'  => $u->nama_pemilik  ?? '—',
-                'blok_nama'     => optional($u->blok)->nama_blok ?? 'Blok ?',
-                'angka_lalu'    => $isThisSelected ? $angkaLalu : 4198,
+                'id' => $u->id,
+                'nomor_rumah' => $u->nomor_rumah ?? '—',
+                'nama_pemilik' => $u->nama_pemilik ?? '—',
+                'blok_nama' => optional($u->blok)->nama_blok ?? 'Blok ?',
+                'angka_lalu' => $isThisSelected ? $angkaLalu : 4198,
                 'sudah_dicatat' => $sudahDicatat,
-                'estimasi_range'=> ($estimasiMin && $estimasiMax) ? ($estimasiMin . '–' . $estimasiMax . ' m³') : '20–32 m³',
+                'estimasi_range' => ($estimasiMin && $estimasiMax) ? ($estimasiMin.'–'.$estimasiMax.' m³') : '20–32 m³',
             ];
         })->values()->all();
 
         // Flash message dari session
         $successMessage = session('success');
-        $errorMessage   = session('error');
+        $errorMessage = session('error');
 
         return view('petugas.pindai', compact(
             'user',
@@ -153,25 +154,63 @@ class DashboardController extends Controller
             'currentMonth',
             'currentYear',
             'successMessage',
-            'errorMessage'
+            'errorMessage',
+            'geofenceConfig'
         ));
     }
 
-    public function store(Request $request)
+    /**
+     * Endpoint AJAX untuk memindai foto meteran menggunakan Google Cloud Vision API (Konsentrasi Bisnis Digital).
+     */
+    public function ocrScan(Request $request, OcrMeterService $ocrMeterService)
     {
         $request->validate([
-            'unit_id'      => 'required|exists:unit_hunians,id',
-            'angka_meter'  => 'required|numeric|min:0',
-            'foto_meter'   => 'nullable|image|max:5120',
-            'latitude'     => 'nullable|numeric',
-            'longitude'    => 'nullable|numeric',
-            'catatan'      => 'nullable|string|max:500',
+            'foto_meter' => 'required|image|max:5120',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+        ]);
+
+        $gpsCheck = $ocrMeterService->validateGpsLocation(
+            $request->filled('latitude') ? (float) $request->latitude : null,
+            $request->filled('longitude') ? (float) $request->longitude : null
+        );
+
+        if (! $gpsCheck['is_valid']) {
+            return response()->json([
+                'success' => false,
+                'suggested_digits' => null,
+                'raw_text' => '',
+                'confidence_score' => 0.0,
+                'has_api_key' => (string) config('services.google_vision.api_key', '') !== '',
+                'message' => $gpsCheck['message'],
+            ], 422);
+        }
+
+        $file = $request->file('foto_meter');
+        $imageBinary = file_get_contents($file->getRealPath());
+        $hasApiKey = (string) config('services.google_vision.api_key', '') !== '';
+
+        $ocrResult = $ocrMeterService->extractMeterFromImage($imageBinary !== false ? $imageBinary : '');
+        $ocrResult['has_api_key'] = $hasApiKey;
+
+        return response()->json($ocrResult);
+    }
+
+    public function store(Request $request, OcrMeterService $ocrMeterService)
+    {
+        $request->validate([
+            'unit_id' => 'required|exists:unit_hunians,id',
+            'angka_meter' => 'required|numeric|min:0',
+            'foto_meter' => 'nullable|image|max:5120',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'catatan' => 'nullable|string|max:500',
         ]);
 
         $user = Auth::user();
         $now = Carbon::now();
         $currentMonth = $now->month;
-        $currentYear  = $now->year;
+        $currentYear = $now->year;
 
         // Cek apakah sudah ada bacaan bulan ini
         $existing = BacaanMeter::where('unit_id', $request->unit_id)
@@ -181,7 +220,17 @@ class DashboardController extends Controller
 
         if ($existing) {
             return back()->withInput()
-                ->with('error', 'Bacaan meter untuk unit ini di bulan ' . $now->translatedFormat('F Y') . ' sudah ada. Hubungi Admin untuk koreksi.');
+                ->with('error', 'Bacaan meter untuk unit ini di bulan '.$now->translatedFormat('F Y').' sudah ada. Hubungi Admin untuk koreksi.');
+        }
+
+        // Validasi radius GPS menggunakan service Konsentrasi Bisnis Digital
+        $gpsCheck = $ocrMeterService->validateGpsLocation(
+            $request->filled('latitude') ? (float) $request->latitude : null,
+            $request->filled('longitude') ? (float) $request->longitude : null
+        );
+
+        if (! $gpsCheck['is_valid']) {
+            return back()->withInput()->with('error', $gpsCheck['message']);
         }
 
         // Angka meter bulan lalu
@@ -191,46 +240,46 @@ class DashboardController extends Controller
             ->where('tahun', $lastMonth->year)
             ->first();
 
-        $angkaBulanLalu = $bacaanLalu ? $bacaanLalu->angka_meter : 0;
-        $angkaSekarang  = (float) $request->angka_meter;
-        $pemakaian      = $angkaSekarang - $angkaBulanLalu;
+        $unit = UnitHunian::find($request->unit_id);
+        $angkaBulanLalu = $bacaanLalu ? (float) $bacaanLalu->angka_meter : 0.0;
+        $angkaSekarang = (float) $request->angka_meter;
+        $confidenceScore = $request->filled('confidence_score') ? (float) $request->confidence_score : null;
 
-        // Deteksi anomali
-        $statusVerifikasi = 'valid';
-        $catatanAnomali   = null;
+        // Evaluasi aturan anomali (Exception-Based Review) melalui service Konsentrasi Bisnis Digital
+        $anomalyResult = $ocrMeterService->evaluateReadingAnomaly(
+            $angkaBulanLalu,
+            $angkaSekarang,
+            $confidenceScore,
+            $unit?->status_huni ?? 'Dihuni'
+        );
 
-        if ($pemakaian < 0) {
-            $statusVerifikasi = 'ter_flag';
-            $catatanAnomali   = 'Angka meter lebih kecil dari bulan lalu (kemungkinan kesalahan baca atau penggantian meter).';
-        } elseif ($angkaBulanLalu > 0 && $pemakaian > ($angkaBulanLalu * 2)) {
-            $statusVerifikasi = 'ter_flag';
-            $catatanAnomali   = 'Pemakaian melebihi 2x rata-rata historis — perlu verifikasi admin.';
-        }
+        $statusVerifikasi = $anomalyResult['status_verifikasi'];
+        $catatanAnomali = $anomalyResult['catatan_anomali'];
 
         // Upload foto jika ada
-        $fotoPath = null;
+        $fotoPath = 'sample_meter.jpg';
         if ($request->hasFile('foto_meter')) {
             $fotoPath = $request->file('foto_meter')->store('bacaan_meters', 'public');
         }
 
         // Simpan bacaan
         BacaanMeter::create([
-            'unit_id'               => $request->unit_id,
-            'user_id'               => $user->id,
-            'foto_meter'            => $fotoPath,
-            'bulan'                 => $currentMonth,
-            'tahun'                 => $currentYear,
-            'angka_meter_bulanlalu' => $angkaBulanLalu,
-            'angka_meter'           => $angkaSekarang,
-            'latitude'              => $request->latitude,
-            'longitude'             => $request->longitude,
-            'status_verifikasi'     => $statusVerifikasi,
-            'confidence_score'      => $request->confidence_score ?? null,
-            'is_ocr_corrected'      => $request->boolean('is_ocr_corrected'),
-            'catatan_anomali'       => $catatanAnomali ?? $request->catatan,
+            'unit_id' => $request->unit_id,
+            'user_id' => $user->id,
+            'foto_meter' => $fotoPath,
+            'bulan' => $currentMonth,
+            'tahun' => $currentYear,
+            'angka_meter_bulanlalu' => (int) $angkaBulanLalu,
+            'angka_meter' => (int) $angkaSekarang,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'status_verifikasi' => $statusVerifikasi,
+            'confidence_score' => $confidenceScore,
+            'is_ocr_corrected' => $request->boolean('is_ocr_corrected'),
+            'catatan_anomali' => $catatanAnomali ?? $request->catatan,
         ]);
 
-        $unitLabel = optional(UnitHunian::find($request->unit_id))->nomor_rumah ?? '#';
+        $unitLabel = $unit?->nomor_rumah ?? '#';
         $msg = "Bacaan meter Unit {$unitLabel} berhasil disimpan.";
         if ($statusVerifikasi === 'ter_flag') {
             $msg .= ' Terdeteksi anomali — butuh persetujuan Admin.';
@@ -242,7 +291,7 @@ class DashboardController extends Controller
     public function riwayat(Request $request)
     {
         $user = Auth::user();
-        $now  = Carbon::now();
+        $now = Carbon::now();
         $periodeStr = $now->translatedFormat('F Y');
 
         $filterBulan = $request->query('bulan', $now->month);

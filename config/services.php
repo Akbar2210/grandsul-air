@@ -35,4 +35,25 @@ return [
         ],
     ],
 
+    'google_vision' => [
+        'api_key' => env('GOOGLE_CLOUD_VISION_API_KEY'),
+        'endpoint' => env('GOOGLE_CLOUD_VISION_ENDPOINT', 'https://vision.googleapis.com/v1/images:annotate'),
+    ],
+
+    'fonnte' => [
+        'token' => env('FONNTE_API_TOKEN'),
+        'endpoint' => env('FONNTE_API_ENDPOINT', 'https://api.fonnte.com/send'),
+    ],
+
+    'rsa' => [
+        'private_key_path' => env('RSA_PRIVATE_KEY_PATH', storage_path('app/keys/rsa_private_2048.pem')),
+        'public_key_path' => env('RSA_PUBLIC_KEY_PATH', storage_path('app/keys/rsa_public_2048.pem')),
+    ],
+
+    'geofence' => [
+        'center_lat' => (float) env('GEOFENCE_CENTER_LAT', -4.007468),
+        'center_lng' => (float) env('GEOFENCE_CENTER_LNG', 119.661131),
+        'radius_meters' => (float) env('GEOFENCE_RADIUS_METERS', 700.0),
+    ],
+
 ];

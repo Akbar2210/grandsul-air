@@ -51,6 +51,7 @@ export default {
             },
             fontFamily: {
                 sans: ['Poppins', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+                mono: ['Poppins', 'ui-monospace', 'SFMono-Regular', 'sans-serif'],
             },
             borderRadius: {
                 sm: '4px',

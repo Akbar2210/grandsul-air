@@ -3,18 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\UnitHunian;
-use App\Models\BacaanMeter;
-use App\Models\Tagihan;
-use App\Models\Pembayaran;
-use App\Models\BlokHunian;
-use App\Models\TarifAir;
 use App\Models\AuditLog;
+use App\Models\BacaanMeter;
+use App\Models\BlokHunian;
+use App\Models\Pembayaran;
+use App\Models\Tagihan;
+use App\Models\TarifAir;
+use App\Models\UnitHunian;
 use App\Models\User;
+use App\Services\BatchProcessing\BatchTagihanService;
+use App\Services\CyberSecurity\RsaSignatureService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DashboardController extends Controller
 {
@@ -120,7 +122,7 @@ class DashboardController extends Controller
             $selected = BacaanMeter::with(['unit.blok', 'petugas'])->find($selectedId);
         }
 
-        if (!$selected && $terflagList->isNotEmpty()) {
+        if (! $selected && $terflagList->isNotEmpty()) {
             $selected = $terflagList->first();
         }
 
@@ -160,7 +162,7 @@ class DashboardController extends Controller
             $bacaan->angka_meter = $angkaBaru;
             $bacaan->is_ocr_corrected = true;
             $bacaan->status_verifikasi = 'valid';
-            $bacaan->catatan_anomali = "Dikoreksi Admin: " . $catatan;
+            $bacaan->catatan_anomali = 'Dikoreksi Admin: '.$catatan;
             $bacaan->save();
 
             AuditLog::create([
@@ -176,7 +178,7 @@ class DashboardController extends Controller
         if ($action === 'reject') {
             $alasan = $request->input('catatan', 'Foto tidak jelas/blur');
             $bacaan->status_verifikasi = 'ditolak';
-            $bacaan->catatan_anomali = "Ditolak Admin: " . $alasan;
+            $bacaan->catatan_anomali = 'Ditolak Admin: '.$alasan;
             $bacaan->save();
 
             AuditLog::create([
@@ -235,48 +237,24 @@ class DashboardController extends Controller
     }
 
     /**
-     * Eksekusi Batch Processing Tagihan Massal
+     * Eksekusi Batch Processing Tagihan Massal & Pengingat WhatsApp
      */
-    public function batchTagihan(Request $request)
+    public function batchTagihan(Request $request, BatchTagihanService $batchTagihanService)
     {
-        $now = Carbon::now();
-        $priode = $now->format('Y-m');
         $user = Auth::user();
-
-        // Ambil bacaan valid yang belum ditagihkan
-        $bacaans = BacaanMeter::where('status_verifikasi', 'valid')
-            ->whereDoesntHave('tagihan')
-            ->get();
-
-        $tarif1 = TarifAir::firstOrCreate(['blok_konsumsi' => '0 - 10 m³'], ['batas_bawah' => 0, 'batas_atas' => 10, 'tarif_per_m3' => 2000]);
-        $count = 0;
-
-        foreach ($bacaans as $b) {
-            $pemakaian = max(0, $b->angka_meter - $b->angka_meter_bulanlalu);
-            $totalTagihan = ($pemakaian <= 10) ? ($pemakaian * 2000) : (20000 + ($pemakaian - 10) * 3000);
-
-            Tagihan::create([
-                'unit_id' => $b->unit_id,
-                'bacaan_meter_id' => $b->id,
-                'tarif_id' => $tarif1->id,
-                'priode' => $priode,
-                'volume_pemakaian' => $pemakaian,
-                'total_tagihan' => $totalTagihan,
-                'status_bayar' => 'belum_lunas',
-                'tgl_terbit' => $now->copy()->startOfMonth(),
-                'tgl_jatuh_tempo' => $now->copy()->addDays(20),
-            ]);
-            $count++;
-        }
+        $result = $batchTagihanService->executeBatchBilling();
+        $count = $result['processed_count'];
+        $priode = $result['periode'];
+        $waSent = $result['wa_sent_count'];
 
         AuditLog::create([
             'user_id' => $user->id,
-            'aktivitas' => "Mengeksekusi proses batch tagihan air massal periode {$priode} ({$count} tagihan baru diterbitkan)",
+            'aktivitas' => "Mengeksekusi proses batch tagihan air massal periode {$priode} ({$count} tagihan baru diterbitkan, {$waSent} WA Reminder dikirim)",
             'ip_address' => $request->ip(),
             'timestamp' => Carbon::now(),
         ]);
 
-        return redirect()->route('admin.tagihan')->with('success', "Batch Processing berhasil diproses di latar belakang. {$count} data tagihan berhasil dikalkulasi.");
+        return redirect()->route('admin.tagihan')->with('success', "Batch Processing berhasil diproses di latar belakang. {$count} data tagihan berhasil dikalkulasi dan {$waSent} WA Auto-Reminder terkirim.");
     }
 
     /**
@@ -342,12 +320,12 @@ class DashboardController extends Controller
 
         AuditLog::create([
             'user_id' => $user->id,
-            'aktivitas' => "Mencatat pembayaran Rp " . number_format($jumlahBayar, 0, ',', '.') . " ({$request->metode_bayar}) untuk Unit {$tagihan->unit->nomor_rumah} - Status: {$tagihan->status_bayar}",
+            'aktivitas' => 'Mencatat pembayaran Rp '.number_format($jumlahBayar, 0, ',', '.')." ({$request->metode_bayar}) untuk Unit {$tagihan->unit->nomor_rumah} - Status: {$tagihan->status_bayar}",
             'ip_address' => $request->ip(),
             'timestamp' => Carbon::now(),
         ]);
 
-        return redirect()->route('admin.riwayat-pembayaran')->with('success', "Pembayaran Unit {$tagihan->unit->nomor_rumah} berhasil dicatat dengan status " . strtoupper($tagihan->status_bayar) . ".");
+        return redirect()->route('admin.riwayat-pembayaran')->with('success', "Pembayaran Unit {$tagihan->unit->nomor_rumah} berhasil dicatat dengan status ".strtoupper($tagihan->status_bayar).'.');
     }
 
     /**
@@ -383,7 +361,7 @@ class DashboardController extends Controller
     /**
      * Cetak Nota Kriptografis Ber-QR (RSA-2048 + SHA-256)
      */
-    public function cetakNota($id)
+    public function cetakNota($id, RsaSignatureService $rsaSignatureService)
     {
         $pembayaran = Pembayaran::with(['tagihan.unit.blok'])->findOrFail($id);
 
@@ -391,22 +369,29 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', 'Nota kriptografis hanya dapat diterbitkan untuk tagihan berstatus LUNAS.');
         }
 
-        $now = Carbon::now();
         $user = Auth::user();
+        $signatureData = $rsaSignatureService->issueReceiptSignature($pembayaran);
 
-        // Data kanonik untuk hash SHA-256
-        $canonicalData = "NOTA|{$pembayaran->id}|{$pembayaran->tagihan->unit->nomor_rumah}|{$pembayaran->jumlah_bayar}|{$pembayaran->tgl_bayar}|GRAND_SULAWESI";
-        $hashSha256 = hash('sha256', $canonicalData);
-        $signatureRsa = strtoupper(substr(hash('sha512', $canonicalData . 'RSA_KEY_PRIV'), 0, 128));
+        $canonicalData = $signatureData['canonical_data'];
+        $hashSha256 = $signatureData['hash_sha256'];
+        $signatureRsa = $signatureData['signature_rsa'];
 
         AuditLog::create([
             'user_id' => $user->id,
-            'aktivitas' => "Mencetak nota kriptografis resmi untuk Unit {$pembayaran->tagihan->unit->nomor_rumah} (Hash: " . substr($hashSha256, 0, 10) . "...)",
+            'aktivitas' => "Mencetak nota kriptografis resmi untuk Unit {$pembayaran->tagihan->unit->nomor_rumah} (Hash: ".substr($hashSha256, 0, 10).'...)',
             'ip_address' => request()->ip(),
             'timestamp' => Carbon::now(),
         ]);
 
-        return view('admin.nota-cetak', compact('pembayaran', 'hashSha256', 'signatureRsa', 'canonicalData'));
+        $baseUrl = request()->root();
+        $qrPayload = $rsaSignatureService->buildQrPayload($pembayaran->id, $hashSha256, $signatureRsa, $baseUrl);
+        $qrSvg = (string) QrCode::format('svg')
+            ->size(160)
+            ->margin(1)
+            ->errorCorrection('M')
+            ->generate($qrPayload);
+
+        return view('admin.nota-cetak', compact('pembayaran', 'hashSha256', 'signatureRsa', 'canonicalData', 'qrPayload', 'qrSvg'));
     }
 
     /**
@@ -433,17 +418,23 @@ class DashboardController extends Controller
             $totalVol = Tagihan::whereHas('unit', function ($u) use ($blok) {
                 $u->where('blok_id', $blok->id);
             })->sum('volume_pemakaian');
-            if ($totalVol == 0) $totalVol = 2410 - ($blok->id * 60);
+            if ($totalVol == 0) {
+                $totalVol = 2410 - ($blok->id * 60);
+            }
 
             $totalTagihan = Tagihan::whereHas('unit', function ($u) use ($blok) {
                 $u->where('blok_id', $blok->id);
             })->sum('total_tagihan');
-            if ($totalTagihan == 0) $totalTagihan = 26100000 - ($blok->id * 700000);
+            if ($totalTagihan == 0) {
+                $totalTagihan = 26100000 - ($blok->id * 700000);
+            }
 
             $totalBayar = Tagihan::whereHas('unit', function ($u) use ($blok) {
                 $u->where('blok_id', $blok->id);
             })->where('status_bayar', 'lunas')->sum('total_tagihan');
-            if ($totalBayar == 0) $totalBayar = round($totalTagihan * 0.76);
+            if ($totalBayar == 0) {
+                $totalBayar = round($totalTagihan * 0.76);
+            }
 
             $rekapBlok[] = [
                 'nama' => $blok->nama_blok,
@@ -484,7 +475,7 @@ class DashboardController extends Controller
         $user = Auth::user();
         AuditLog::create([
             'user_id' => $user->id,
-            'aktivitas' => "Mengekspor laporan rekapitulasi tagihan & pembayaran bulanan format PDF",
+            'aktivitas' => 'Mengekspor laporan rekapitulasi tagihan & pembayaran bulanan format PDF',
             'ip_address' => $request->ip(),
             'timestamp' => Carbon::now(),
         ]);
@@ -556,7 +547,7 @@ class DashboardController extends Controller
             'nomor_rumah' => $request->nomor_rumah,
             'nama_pemilik' => $request->nama_pemilik,
             'blok_id' => $request->blok_id,
-            'nomor_wa' => $request->nomor_wa ?? '0812' . rand(10000000, 99999999),
+            'nomor_wa' => $request->nomor_wa ?? '0812'.rand(10000000, 99999999),
             'status_huni' => 'Dihuni',
         ]);
 
@@ -622,7 +613,7 @@ class DashboardController extends Controller
                 AuditLog::create([
                     'user_id' => $adminUser->id,
                     'aktivitas' => $s['act'],
-                    'ip_address' => '103.28.12.' . (40 + $i),
+                    'ip_address' => '103.28.12.'.(40 + $i),
                     'timestamp' => Carbon::now()->subMinutes($i * 14),
                 ]);
             }
@@ -631,7 +622,7 @@ class DashboardController extends Controller
         $query = AuditLog::with('user')->latest('timestamp');
 
         if ($request->filled('aktivitas')) {
-            $query->where('aktivitas', 'like', '%' . $request->aktivitas . '%');
+            $query->where('aktivitas', 'like', '%'.$request->aktivitas.'%');
         }
 
         $logs = $query->paginate(15)->withQueryString();

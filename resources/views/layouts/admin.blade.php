@@ -15,22 +15,21 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
-        /* Modern table styling & typography per desain.md */
         .tabular-nums {
             font-variant-numeric: tabular-nums;
         }
 
-        /* Primary Cyan CTA Button */
+        /* Primary CTA Button (Sharp Kotak Architecture) */
         .btn-cyan-cta {
-            background-color: #00F2FE;
-            color: #0B132B;
+            background-color: #2563EB;
+            color: #FFFFFF;
             font-weight: 700;
-            border-radius: 12px;
+            border-radius: 0px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-cyan-cta:hover:not(:disabled) {
-            background-color: #00C4CE;
-            box-shadow: 0 0 16px rgba(0, 242, 254, 0.35);
+            background-color: #1D4ED8;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
             transform: translateY(-1px);
         }
         .btn-cyan-cta:active:not(:disabled) {
@@ -46,7 +45,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="bg-[#EEF2F6] font-sans text-[#1E293B] antialiased" x-data="{ sidebarOpen: false }">
+<body class="bg-[#F8FAFC] font-sans text-[#1E293B] antialiased" x-data="{ sidebarOpen: false }">
 
     {{-- Mobile Overlay Drawer --}}
     <div
@@ -58,14 +57,14 @@
         x-transition:leave="transition-opacity ease-linear duration-200"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        class="fixed inset-0 bg-[#0F172A]/50 backdrop-blur-xs z-40 lg:hidden"
+        class="fixed inset-0 bg-[#0B1120]/50 backdrop-blur-xs z-40 lg:hidden"
         style="display: none;"
     ></div>
 
     <div class="min-h-screen flex">
-        {{-- ==================== SIDEBAR KIRI (NAVY SLEEK #0F172A) ==================== --}}
+        {{-- ==================== SIDEBAR KIRI (NAVY SLEEK #0B1120) ==================== --}}
         <aside
-            class="fixed inset-y-0 left-0 z-50 w-[250px] bg-[#0F172A] flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0"
+            class="fixed inset-y-0 left-0 z-50 w-[250px] bg-[#0B1120] flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
         >
             <div>
@@ -102,10 +101,10 @@
                     {{-- 2. Data Ter-flag --}}
                     <a href="{{ route('admin.terflag') }}" class="{{ request()->routeIs('admin.terflag*') ? 'menu-item-modern active justify-between' : 'menu-item-modern justify-between' }}">
                         <div class="flex items-center gap-3">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"/></svg>
                             <span>Data Ter-flag</span>
                         </div>
-                        <span class="w-5 h-5 rounded-full {{ request()->routeIs('admin.terflag*') ? 'bg-white text-[#2563EB]' : 'bg-[#1E293B] text-[#38BDF8] border border-[#334155]' }} text-[10px] font-bold flex items-center justify-center">
+                        <span class="w-5 h-5 rounded-none {{ request()->routeIs('admin.terflag*') ? 'bg-white text-[#2563EB]' : 'bg-[#1E293B] text-[#60A5FA] border border-[#334155]' }} text-[10px] font-mono font-bold flex items-center justify-center">
                             {{ $totalTerflagCount ?? 4 }}
                         </span>
                     </a>
@@ -164,7 +163,7 @@
         <div class="flex-1 lg:pl-[250px] flex flex-col min-w-0">
 
             {{-- TOPBAR BERSIH, RAPI & MINIMALIS --}}
-            <header class="px-6 lg:px-10 pt-7 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#E2E8F0]/80 bg-white/50 backdrop-blur-xs">
+            <header class="px-6 lg:px-10 pt-7 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#E2E8F0]/80 bg-white/80 backdrop-blur-xs">
                 <div class="flex items-center gap-3">
                     {{-- Hamburger Mobile --}}
                     <button @click="sidebarOpen = true" class="lg:hidden text-[#1E293B] p-2 rounded-lg hover:bg-[#F1F5F9] transition-colors border border-[#E2E8F0]">
@@ -183,7 +182,7 @@
                 <div class="flex items-center gap-3 sm:gap-4 self-end md:self-auto">
                     @yield('page-actions')
 
-                    {{-- DROPDOWN NOTIFIKASI SISTEM (SESUAI PRD F-11 & US-11) --}}
+                    {{-- DROPDOWN NOTIFIKASI SISTEM --}}
                     <div class="relative" x-data="{
                         open: false,
                         notifications: [
@@ -226,7 +225,6 @@
                             window.location.href = item.link;
                         }
                     }">
-                        {{-- Bell Icon Button (Polos Minimalis Tanpa Kotak Background) --}}
                         <button
                             @click="open = !open"
                             type="button"
@@ -236,7 +234,6 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
                             </svg>
-                            {{-- Red Indicator Dot --}}
                             <template x-if="unreadCount > 0">
                                 <span class="absolute top-1.5 right-1.5 flex h-2 w-2">
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EF4444] opacity-75"></span>
@@ -245,7 +242,6 @@
                             </template>
                         </button>
 
-                        {{-- Dropdown Panel Notifikasi --}}
                         <div
                             x-show="open"
                             @click.away="open = false"
@@ -255,77 +251,56 @@
                             x-transition:leave="transition ease-in duration-100"
                             x-transition:leave-start="opacity-100 translate-y-0 scale-100"
                             x-transition:leave-end="opacity-0 translate-y-1 scale-95"
-                            class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl border border-[#E2E8F0] shadow-xl z-50 overflow-hidden"
+                            class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg border border-[#CBD5E1] shadow-lg z-50 overflow-hidden"
                             style="display: none;"
                         >
-                            {{-- Header Notifikasi --}}
-                            <div class="px-4 py-3 border-b border-[#F1F5F9] flex items-center justify-between bg-[#F8FAFC]">
+                            <div class="px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
                                 <div class="flex items-center gap-2">
                                     <h4 class="text-xs font-bold text-[#0F172A]">Notifikasi Sistem</h4>
                                     <template x-if="unreadCount > 0">
-                                        <span class="px-1.5 py-0.5 rounded-full bg-[#EF4444] text-white text-[10px] font-bold" x-text="unreadCount + ' Baru'"></span>
+                                        <span class="px-1.5 py-0.5 rounded-md bg-[#0F172A] text-white text-[10px] font-mono font-bold" x-text="unreadCount + ' Baru'"></span>
                                     </template>
                                 </div>
                                 <button
                                     type="button"
                                     @click="markAllAsRead()"
-                                    class="text-[11px] font-medium text-[#2563EB] hover:text-[#1D4ED8] hover:underline cursor-pointer"
+                                    class="text-[11px] font-semibold text-[#0F172A] hover:underline cursor-pointer"
                                     x-show="unreadCount > 0"
                                 >
                                     Tandai dibaca
                                 </button>
                             </div>
 
-                            {{-- Daftar Notifikasi --}}
-                            <div class="max-h-80 overflow-y-auto divide-y divide-[#F1F5F9]">
+                            <div class="max-h-80 overflow-y-auto divide-y divide-[#E2E8F0]">
                                 <template x-for="item in notifications" :key="item.id">
                                     <div
                                         @click="readNotif(item)"
                                         class="p-3.5 hover:bg-[#F8FAFC] transition-colors cursor-pointer flex items-start gap-3 relative"
-                                        :class="item.unread ? 'bg-[#EFF6FF]/40' : ''"
+                                        :class="item.unread ? 'bg-[#F8FAFC]/80' : ''"
                                     >
-                                        {{-- Icon Berdasarkan Tipe Notifikasi PRD --}}
-                                        <div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                                             :class="{
-                                                 'bg-[#FEF3C7] text-[#D97706]': item.type === 'flag',
-                                                 'bg-[#EFF6FF] text-[#2563EB]': item.type === 'batch',
-                                                 'bg-[#ECFDF5] text-[#059669]': item.type === 'wa'
-                                             }">
+                                        <div class="w-7 h-7 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] flex items-center justify-center shrink-0 mt-0.5">
                                             <template x-if="item.type === 'flag'">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                                                <svg class="w-3.5 h-3.5 text-[#0F172A]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"/></svg>
                                             </template>
                                             <template x-if="item.type === 'batch'">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <svg class="w-3.5 h-3.5 text-[#0F172A]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3"/></svg>
                                             </template>
                                             <template x-if="item.type === 'wa'">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.84-.961l.534-1.599A8.04 8.04 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
+                                                <svg class="w-3.5 h-3.5 text-[#0F172A]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/></svg>
                                             </template>
                                         </div>
 
-                                        {{-- Konten Notifikasi --}}
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center justify-between gap-1">
                                                 <h5 class="text-xs font-bold text-[#0F172A] truncate" x-text="item.title"></h5>
-                                                <span class="text-[10px] text-[#94A3B8] whitespace-nowrap" x-text="item.time"></span>
+                                                <span class="text-[10px] font-mono text-[#64748B] whitespace-nowrap" x-text="item.time"></span>
                                             </div>
-                                            <p class="text-[11px] text-[#64748B] mt-0.5 leading-snug line-clamp-2" x-text="item.desc"></p>
+                                            <p class="text-[11px] text-[#475569] mt-0.5 leading-snug line-clamp-2" x-text="item.desc"></p>
                                         </div>
 
-                                        {{-- Unread Dot Indicator --}}
                                         <template x-if="item.unread">
-                                            <span class="w-2 h-2 rounded-full bg-[#2563EB] shrink-0 mt-1.5"></span>
+                                            <span class="w-1.5 h-1.5 rounded-full bg-[#0F172A] shrink-0 mt-1.5"></span>
                                         </template>
-                                    </div>
-                                </template>
-
-                                {{-- Pesan Jika Kosong (Sesuai US-11 PRD) --}}
-                                <template x-if="notifications.length === 0">
-                                    <div class="p-8 text-center text-[#64748B]">
-                                        <svg class="w-8 h-8 mx-auto text-[#CBD5E1] mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
-                                        </svg>
-                                        <p class="text-xs font-semibold text-[#0F172A]">Belum ada notifikasi</p>
-                                        <p class="text-[11px] text-[#94A3B8] mt-0.5">Semua proses berjalan lancar</p>
                                     </div>
                                 </template>
                             </div>
@@ -334,7 +309,7 @@
 
                     {{-- Profil Avatar Admin --}}
                     <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-[#0F172A] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                        <div class="w-9 h-9 rounded-lg bg-[#0F172A] text-white font-mono font-bold text-xs flex items-center justify-center shadow-xs">
                             {{ strtoupper(substr(Auth::user()->name ?? 'AD', 0, 2)) }}
                         </div>
                         <div class="hidden sm:block text-left">
@@ -353,22 +328,22 @@
 
                 {{-- Flash Messages --}}
                 @if(session('success'))
-                <div class="mb-6 px-4 py-3 bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl text-sm flex items-center justify-between shadow-xs">
-                    <div class="flex items-center gap-2.5 text-[#065F46] font-medium">
-                        <svg class="w-5 h-5 text-[#059669] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div class="mb-6 px-4 py-3 bg-white border border-[#E2E8F0] border-l-4 border-l-[#10B981] rounded-lg text-sm flex items-center justify-between shadow-xs">
+                    <div class="flex items-center gap-2.5 text-[#0F172A] font-medium">
+                        <svg class="w-5 h-5 text-[#10B981] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>{{ session('success') }}</span>
                     </div>
-                    <span class="text-xs px-2.5 py-0.5 rounded-full bg-[#BBF7D0] text-[#166534] font-bold">Berhasil</span>
+                    <span class="text-xs px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-semibold">Berhasil</span>
                 </div>
                 @endif
 
                 @if(session('error'))
-                <div class="mb-6 px-4 py-3 bg-[#FEF2F2] border border-[#FECACA] rounded-xl text-sm flex items-center justify-between shadow-xs">
-                    <div class="flex items-center gap-2.5 text-[#991B1B] font-medium">
-                        <svg class="w-5 h-5 text-[#DC2626] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+                <div class="mb-6 px-4 py-3 bg-white border border-[#E2E8F0] border-l-4 border-l-[#EF4444] rounded-lg text-sm flex items-center justify-between shadow-xs">
+                    <div class="flex items-center gap-2.5 text-[#0F172A] font-medium">
+                        <svg class="w-5 h-5 text-[#EF4444] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
                         <span>{{ session('error') }}</span>
                     </div>
-                    <span class="text-xs px-2.5 py-0.5 rounded-full bg-[#FECACA] text-[#991B1B] font-bold">Gagal</span>
+                    <span class="text-xs px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-semibold">Gagal</span>
                 </div>
                 @endif
 
@@ -381,4 +356,3 @@
     @stack('scripts')
 </body>
 </html>
-

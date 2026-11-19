@@ -7,40 +7,36 @@
 @section('content')
 <div class="space-y-6" x-data="{ addUnitModal: false, addTarifModal: false }">
 
-    {{-- ==================== METRIC CARDS ==================== --}}
+    {{-- ==================== METRIC CARDS (BENTUK ASLI DIPERTAHANKAN) ==================== --}}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {{-- Card 1: Unit --}}
         <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-xs">
             <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">TOTAL UNIT</span>
-            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight tabular-nums">
-                {{ $totalUnitsCount }} <span class="text-xs font-semibold text-[#64748B]">Rumah</span>
+            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight font-mono tabular-nums">
+                {{ $totalUnitsCount }} <span class="text-xs font-sans font-semibold text-[#64748B]">Rumah</span>
             </div>
             <span class="text-[11px] text-[#059669] font-medium mt-1 block">100% Terpasang Meter</span>
         </div>
 
-        {{-- Card 2: Blok --}}
         <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-xs">
             <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">BLOK HUNIAN</span>
-            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight tabular-nums">
-                {{ $totalBloksCount }} <span class="text-xs font-semibold text-[#64748B]">Blok (A–F)</span>
+            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight font-mono tabular-nums">
+                {{ $totalBloksCount }} <span class="text-xs font-sans font-semibold text-[#64748B]">Blok (A–F)</span>
             </div>
             <span class="text-[11px] text-[#2563EB] font-medium mt-1 block">Jaringan Pipa Aktif</span>
         </div>
 
-        {{-- Card 3: Tarif --}}
         <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-xs">
             <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">TARIF PROGRESIF</span>
-            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight tabular-nums">
-                {{ $totalTarifsCount }} <span class="text-xs font-semibold text-[#64748B]">Tingkatan</span>
+            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight font-mono tabular-nums">
+                {{ $totalTarifsCount }} <span class="text-xs font-sans font-semibold text-[#64748B]">Tingkatan</span>
             </div>
             <span class="text-[11px] text-[#64748B] font-medium mt-1 block">Sistem Adil & Bijak</span>
         </div>
 
-        {{-- Card 4: Petugas --}}
         <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-xs">
             <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">PETUGAS LAPANGAN</span>
-            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight tabular-nums">
-                {{ $petugasList->count() }} <span class="text-xs font-semibold text-[#64748B]">Petugas</span>
+            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight font-mono tabular-nums">
+                {{ $petugasList->count() }} <span class="text-xs font-sans font-semibold text-[#64748B]">Petugas</span>
             </div>
             <span class="text-[11px] text-[#059669] font-medium mt-1 block">Pencatatan OCR Siaga</span>
         </div>
@@ -71,12 +67,10 @@
     {{-- ==================== KONTEN TAB 1: UNIT & PELANGGAN ==================== --}}
     @if($activeTab === 'unit')
     <div class="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
-        {{-- Toolbar Filter & Action Buttons --}}
         <div class="p-5 border-b border-[#F1F5F9] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <form method="GET" action="{{ route('admin.master') }}" class="flex flex-wrap items-center gap-3">
                 <input type="hidden" name="tab" value="unit">
-                
-                {{-- Filter Blok --}}
+
                 <select name="blok" class="px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
                     <option value="">Semua Blok (A – F)</option>
                     @foreach($bloks as $b)
@@ -84,7 +78,6 @@
                     @endforeach
                 </select>
 
-                {{-- Filter Status --}}
                 <select name="status" class="px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
                     <option value="">Semua Status Huni</option>
                     <option value="Dihuni" {{ request('status') == 'Dihuni' ? 'selected' : '' }}>Dihuni</option>
@@ -96,9 +89,8 @@
                 </button>
             </form>
 
-            {{-- Action Buttons --}}
             <div class="flex items-center gap-2.5">
-                <button @click="addUnitModal = true" class="px-4 py-2.5 rounded-xl bg-[#00F2FE] hover:bg-[#00C4CE] text-[#0B132B] font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer">
+                <button @click="addUnitModal = true" class="px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                     <span>Tambah Unit Baru</span>
                 </button>
@@ -109,7 +101,6 @@
             </div>
         </div>
 
-        {{-- Tabel Data Unit --}}
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead>
@@ -126,7 +117,7 @@
                     @forelse($units as $u)
                     <tr class="hover:bg-[#F8FAFC] transition-colors">
                         <td class="py-3.5 px-6">
-                            <span class="px-2.5 py-1 rounded-lg bg-[#0F172A] text-[#00F2FE] font-bold font-mono text-xs shadow-2xs">
+                            <span class="px-2.5 py-1 rounded-lg bg-[#0F172A] text-white font-bold font-mono text-xs shadow-2xs tabular-nums">
                                 {{ $u->nomor_rumah }}
                             </span>
                         </td>
@@ -141,12 +132,14 @@
                         </td>
                         <td class="py-3.5 px-4 text-center">
                             @if($u->status_huni === 'Dihuni')
-                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#059669] font-bold text-[10px]">
-                                ● Dihuni
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-semibold text-[11px]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
+                                <span>Dihuni</span>
                             </span>
                             @else
-                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748B] font-bold text-[10px]">
-                                ○ Kosong
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#64748B] font-semibold text-[11px]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8]"></span>
+                                <span>Kosong</span>
                             </span>
                             @endif
                         </td>
@@ -167,7 +160,6 @@
             </table>
         </div>
 
-        {{-- Pagination --}}
         @if($units->hasPages())
         <div class="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]">
             {{ $units->links() }}
@@ -179,7 +171,6 @@
     {{-- ==================== KONTEN TAB 2: SKEMA TARIF PROGRESIF ==================== --}}
     @if($activeTab === 'tarif')
     <div class="space-y-6">
-        {{-- Card Penjelasan Prinsip Tarif Progresif --}}
         <div class="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-xs">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -189,13 +180,12 @@
                     </p>
                 </div>
                 <button @click="addTarifModal = true" class="px-4 py-2.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 shrink-0 cursor-pointer">
-                    <svg class="w-4 h-4 text-[#00F2FE]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    <svg class="w-4 h-4 text-[#60A5FA]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                     <span>Tambah Skema Tarif</span>
                 </button>
             </div>
         </div>
 
-        {{-- Tabel Tarif Progresif --}}
         <div class="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
@@ -213,7 +203,7 @@
                         @forelse($tarifs as $idx => $t)
                         <tr class="hover:bg-[#F8FAFC] transition-colors">
                             <td class="py-4 px-6 font-bold text-[#0F172A]">
-                                <span class="px-2.5 py-1 rounded-md bg-[#EFF6FF] text-[#1D4ED8] font-bold text-xs border border-[#BFDBFE]">
+                                <span class="px-2.5 py-1 rounded-md bg-[#EFF6FF] text-[#1D4ED8] font-mono font-bold text-xs border border-[#BFDBFE]">
                                     Tier {{ $idx + 1 }}
                                 </span>
                             </td>
@@ -233,8 +223,9 @@
                                 @endif
                             </td>
                             <td class="py-4 px-4 text-center">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#059669] font-bold text-[10px]">
-                                    Aktif Diterapkan
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-semibold text-[11px]">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
+                                    <span>Aktif Diterapkan</span>
                                 </span>
                             </td>
                             <td class="py-4 px-6 text-right">
@@ -260,14 +251,15 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         @forelse($petugasList as $p)
         <div class="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-xs flex items-start gap-4">
-            <div class="w-12 h-12 rounded-2xl bg-[#0F172A] text-[#00F2FE] font-bold flex items-center justify-center text-lg shrink-0">
+            <div class="w-12 h-12 rounded-2xl bg-[#0F172A] text-white font-mono font-bold flex items-center justify-center text-lg shrink-0">
                 {{ strtoupper(substr($p->name, 0, 2)) }}
             </div>
             <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between">
                     <h4 class="text-sm font-bold text-[#0F172A] truncate">{{ $p->name }}</h4>
-                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#059669] font-bold text-[10px]">
-                        ● Aktif Siaga
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-semibold text-[11px]">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
+                        <span>Aktif Siaga</span>
                     </span>
                 </div>
                 <p class="text-xs text-[#64748B] mt-0.5 font-mono">{{ $p->email }}</p>
@@ -311,24 +303,25 @@
                     <tr class="hover:bg-[#F8FAFC] transition-colors">
                         <td class="py-4 px-6 font-bold text-[#0F172A]">
                             <span class="inline-flex items-center gap-2.5">
-                                <span class="w-8 h-8 rounded-xl bg-[#0F172A] text-[#00F2FE] font-bold flex items-center justify-center text-xs">
+                                <span class="w-8 h-8 rounded-xl bg-[#0F172A] text-white font-mono font-bold flex items-center justify-center text-xs">
                                     {{ substr($b->nama_blok, -1) }}
                                 </span>
                                 <span class="font-bold text-sm">{{ $b->nama_blok }}</span>
                             </span>
                         </td>
-                        <td class="py-4 px-4 text-center font-bold text-[#0F172A] tabular-nums">
+                        <td class="py-4 px-4 text-center font-mono font-bold text-[#0F172A] tabular-nums">
                             {{ $b->unit_hunians_count > 0 ? $b->unit_hunians_count : 24 }} Unit
                         </td>
                         <td class="py-4 px-4 font-semibold text-[#0F172A]">
                             Hendra (Petugas Lapangan)
                         </td>
                         <td class="py-4 px-4">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#059669] font-bold text-[10px]">
-                                Normal & Stabil
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-semibold text-[11px]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
+                                <span>Normal & Stabil</span>
                             </span>
                         </td>
-                        <td class="py-4 px-6 text-right font-mono font-bold text-[#0284C7] tabular-nums">
+                        <td class="py-4 px-6 text-right font-mono font-bold text-[#2563EB] tabular-nums">
                             3.2 Bar (Optimal)
                         </td>
                     </tr>
@@ -365,7 +358,7 @@
                 <div>
                     <label class="block font-bold text-[#0F172A] mb-1">Nomor Unit / Rumah <span class="text-[#E11D48]">*</span></label>
                     <input type="text" name="nomor_rumah" placeholder="Contoh: A-15, B-08" required
-                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
                 </div>
 
                 <div>
@@ -393,7 +386,7 @@
                     <button type="button" @click="addUnitModal = false" class="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] font-bold text-xs">
                         Batal
                     </button>
-                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#00F2FE] hover:bg-[#00C4CE] text-[#0B132B] font-bold text-xs shadow-xs">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs">
                         Simpan Unit Baru
                     </button>
                 </div>
@@ -427,7 +420,7 @@
                 <div>
                     <label class="block font-bold text-[#0F172A] mb-1">Label Blok Konsumsi <span class="text-[#E11D48]">*</span></label>
                     <input type="text" name="blok_konsumsi" placeholder="Contoh: 21 - 30 m³" required
-                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -453,7 +446,7 @@
                     <button type="button" @click="addTarifModal = false" class="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] font-bold text-xs">
                         Batal
                     </button>
-                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#00F2FE] hover:bg-[#00C4CE] text-[#0B132B] font-bold text-xs shadow-xs">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs">
                         Simpan Tarif
                     </button>
                 </div>
@@ -463,4 +456,3 @@
 
 </div>
 @endsection
-
