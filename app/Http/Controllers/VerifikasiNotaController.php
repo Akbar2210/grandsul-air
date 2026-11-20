@@ -15,6 +15,7 @@ class VerifikasiNotaController extends Controller
     {
         $validated = $request->validate([
             'id' => ['required', 'integer'],
+            'type' => ['nullable', 'string', 'max:20'],
             'hash' => ['nullable', 'string', 'size:64'],
             'sig' => ['nullable', 'string', 'max:64'],
         ]);
@@ -22,7 +23,8 @@ class VerifikasiNotaController extends Controller
         $result = $qrVerificationService->verifyScannedReceipt(
             (int) $validated['id'],
             $validated['hash'] ?? null,
-            $validated['sig'] ?? null
+            $validated['sig'] ?? null,
+            $validated['type'] ?? null
         );
 
         return view('verifikasi-nota', ['result' => $result]);

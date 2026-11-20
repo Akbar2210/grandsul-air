@@ -48,9 +48,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/terflag', [AdminDashboardController::class, 'terflag'])->name('terflag');
     Route::post('/terflag/{id}/resolve', [AdminDashboardController::class, 'resolveTerflag'])->name('terflag.resolve');
 
-    // 3. Tagihan & Batch Processing
+    // 3. Tagihan & Batch Processing + Cetak Nota Fisik Tagihan + Surat Tunggakan Otomatis (>= 4 Bulan)
     Route::get('/tagihan', [AdminDashboardController::class, 'tagihan'])->name('tagihan');
     Route::post('/tagihan/batch', [AdminDashboardController::class, 'batchTagihan'])->name('tagihan.batch');
+    Route::get('/tagihan/{id}/nota', [AdminDashboardController::class, 'cetakNotaTagihan'])->name('tagihan.nota');
+    Route::get('/surat-tunggakan', [AdminDashboardController::class, 'suratTunggakan'])->name('surat-tunggakan');
+    Route::get('/surat-tunggakan/{unitId}/cetak', [AdminDashboardController::class, 'cetakSuratTunggakan'])->name('surat-tunggakan.cetak');
 
     // 4. Pembayaran (Catat Transaksi)
     Route::get('/pembayaran', [AdminDashboardController::class, 'pembayaran'])->name('pembayaran');

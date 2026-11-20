@@ -12,6 +12,7 @@ use App\Models\TarifAir;
 use App\Models\UnitHunian;
 use App\Models\User;
 use App\Services\BatchProcessing\BatchTagihanService;
+use App\Services\BatchProcessing\SuratTunggakanService;
 use App\Services\CyberSecurity\RsaSignatureService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -237,24 +238,91 @@ class DashboardController extends Controller
     }
 
     /**
-     * Eksekusi Batch Processing Tagihan Massal & Pengingat WhatsApp
+     * Eksekusi Batch Processing Tagihan Massal, Penerbitan Nota Otomatis, & Deteksi Surat Penyampaian (>= 4 Bulan)
      */
     public function batchTagihan(Request $request, BatchTagihanService $batchTagihanService)
     {
         $user = Auth::user();
         $result = $batchTagihanService->executeBatchBilling();
-        $count = $result['processed_count'];
+        $notaCount = $result['nota_issued_count'];
+        $newCount = $result['new_bills_count'];
         $priode = $result['periode'];
-        $waSent = $result['wa_sent_count'];
+        $suratCount = $result['surat_generated_count'];
 
         AuditLog::create([
             'user_id' => $user->id,
-            'aktivitas' => "Mengeksekusi proses batch tagihan air massal periode {$priode} ({$count} tagihan baru diterbitkan, {$waSent} WA Reminder dikirim)",
+            'aktivitas' => "Mengeksekusi proses batch tagihan air massal periode {$priode} ({$notaCount} nota rekening diterbitkan otomatis, {$newCount} tagihan baru, {$suratCount} surat tunggakan >= 4 bulan)",
             'ip_address' => $request->ip(),
             'timestamp' => Carbon::now(),
         ]);
 
-        return redirect()->route('admin.tagihan')->with('success', "Batch Processing berhasil diproses di latar belakang. {$count} data tagihan berhasil dikalkulasi dan {$waSent} WA Auto-Reminder terkirim.");
+        return redirect()->route('admin.tagihan')->with('success', "Batch Processing selesai: {$notaCount} Nota Rekening Air Sumur Bor telah diterbitkan otomatis dan siap dicetak fisik terlebih dahulu sebelum dibayar pelanggan ({$suratCount} Surat Penyampaian tunggakan >= 4 bulan siap cetak).");
+    }
+
+    /**
+     * Cetak Nota Fisik Rekening Air Sumur Bor langsung dari Daftar Tagihan (Sebelum / Sesudah Dibayar)
+     */
+    public function cetakNotaTagihan(int $id, RsaSignatureService $rsaSignatureService)
+    {
+        $tagihan = Tagihan::with(['unit.blok', 'bacaanMeter', 'pembayarans'])->findOrFail($id);
+        $pembayaran = $tagihan->pembayarans->sortByDesc('id')->first();
+
+        $baseUrl = request()->root();
+        $signatureData = $rsaSignatureService->issueTagihanSignature($tagihan, $baseUrl);
+
+        $canonicalData = $signatureData['canonical_data'];
+        $hashSha256 = $signatureData['hash_sha256'];
+        $signatureRsa = $signatureData['signature_rsa'];
+        $qrPayload = $signatureData['qr_payload'];
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Mencetak nota fisik rekening air untuk Unit {$tagihan->unit->nomor_rumah} (Tagihan #TGH-2611-".str_pad((string) $tagihan->id, 4, '0', STR_PAD_LEFT).')',
+            'ip_address' => request()->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        $qrSvg = (string) QrCode::format('svg')
+            ->size(160)
+            ->margin(1)
+            ->errorCorrection('M')
+            ->generate($qrPayload);
+
+        return view('admin.nota-cetak', compact('tagihan', 'pembayaran', 'hashSha256', 'signatureRsa', 'canonicalData', 'qrPayload', 'qrSvg'));
+    }
+
+    /**
+     * Daftar Surat Penyampaian Otomatis untuk Unit Menunggak >= 4 Bulan
+     */
+    public function suratTunggakan(SuratTunggakanService $suratService)
+    {
+        $now = Carbon::now();
+        $periodeStr = $now->translatedFormat('F Y');
+        $daftarSurat = $suratService->getDaftarSuratOtomatis();
+        $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
+
+        return view('admin.surat-tunggakan', compact('daftarSurat', 'periodeStr', 'totalTerflagCount'));
+    }
+
+    /**
+     * Cetak Surat Penyampaian Resmi (Template PT. Arista Jaya)
+     */
+    public function cetakSuratTunggakan(int $unitId, SuratTunggakanService $suratService)
+    {
+        $surat = $suratService->getSuratUntukUnit($unitId);
+
+        if (! $surat) {
+            return redirect()->route('admin.surat-tunggakan')->with('error', 'Data tunggakan untuk unit tersebut tidak ditemukan.');
+        }
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Mencetak Surat Penyampaian Tunggakan ({$surat['nomor_surat']}) untuk Unit {$surat['nomor_rumah']} ({$surat['jumlah_bulan']} bulan)",
+            'ip_address' => request()->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return view('admin.surat-tunggakan-cetak', compact('surat'));
     }
 
     /**
@@ -359,53 +427,54 @@ class DashboardController extends Controller
     }
 
     /**
-     * Cetak Nota Kriptografis Ber-QR (RSA-2048 + SHA-256)
+     * Cetak Nota Kriptografis Ber-QR (RSA-2048 + SHA-256) dari Riwayat Pembayaran
      */
     public function cetakNota($id, RsaSignatureService $rsaSignatureService)
     {
-        $pembayaran = Pembayaran::with(['tagihan.unit.blok'])->findOrFail($id);
-
-        if ($pembayaran->tagihan->status_bayar !== 'lunas') {
-            return redirect()->back()->with('error', 'Nota kriptografis hanya dapat diterbitkan untuk tagihan berstatus LUNAS.');
-        }
+        $pembayaran = Pembayaran::with(['tagihan.unit.blok', 'tagihan.bacaanMeter'])->findOrFail($id);
+        $tagihan = $pembayaran->tagihan;
 
         $user = Auth::user();
-        $signatureData = $rsaSignatureService->issueReceiptSignature($pembayaran);
+        $baseUrl = request()->root();
+        $signatureData = $rsaSignatureService->issueTagihanSignature($tagihan, $baseUrl);
 
         $canonicalData = $signatureData['canonical_data'];
         $hashSha256 = $signatureData['hash_sha256'];
         $signatureRsa = $signatureData['signature_rsa'];
+        $qrPayload = $signatureData['qr_payload'];
 
         AuditLog::create([
             'user_id' => $user->id,
-            'aktivitas' => "Mencetak nota kriptografis resmi untuk Unit {$pembayaran->tagihan->unit->nomor_rumah} (Hash: ".substr($hashSha256, 0, 10).'...)',
+            'aktivitas' => "Mencetak nota kriptografis resmi untuk Unit {$tagihan->unit->nomor_rumah} (Hash: ".substr($hashSha256, 0, 10).'...)',
             'ip_address' => request()->ip(),
             'timestamp' => Carbon::now(),
         ]);
 
-        $baseUrl = request()->root();
-        $qrPayload = $rsaSignatureService->buildQrPayload($pembayaran->id, $hashSha256, $signatureRsa, $baseUrl);
         $qrSvg = (string) QrCode::format('svg')
             ->size(160)
             ->margin(1)
             ->errorCorrection('M')
             ->generate($qrPayload);
 
-        return view('admin.nota-cetak', compact('pembayaran', 'hashSha256', 'signatureRsa', 'canonicalData', 'qrPayload', 'qrSvg'));
+        return view('admin.nota-cetak', compact('tagihan', 'pembayaran', 'hashSha256', 'signatureRsa', 'canonicalData', 'qrPayload', 'qrSvg'));
     }
 
     /**
-     * 6. Laporan Rekapitulasi Bulanan & Ekspor PDF
+     * 6. Laporan Rekapitulasi Bulanan & Harian + Ekspor PDF
      * Sesuai SRS Page 13 & Lampiran B (f)
      */
     public function laporan(Request $request)
     {
         $now = Carbon::now();
         $periodeStr = $now->translatedFormat('F Y');
+        $mode = $request->get('mode', 'bulanan'); // bulanan | harian
+        $selectedTanggal = $request->get('tanggal', $now->format('Y-m-d'));
+        $tanggalFormatted = Carbon::parse($selectedTanggal)->translatedFormat('d F Y');
 
         $bloks = BlokHunian::withCount('unitHunians')->orderBy('nama_blok')->get();
+        $selectedBlok = $request->get('blok');
 
-        // Agregasi Laporan per Blok A-F
+        // Agregasi Laporan Bulanan per Blok A-F
         $rekapBlok = [];
         $grandTotalTagihan = 0;
         $grandTotalTerbayar = 0;
@@ -413,6 +482,10 @@ class DashboardController extends Controller
         $grandTotalUnit = 0;
 
         foreach ($bloks as $blok) {
+            if ($selectedBlok && (int) $selectedBlok !== (int) $blok->id) {
+                continue;
+            }
+
             $unitCount = $blok->unit_hunians_count > 0 ? $blok->unit_hunians_count : 24;
 
             $totalVol = Tagihan::whereHas('unit', function ($u) use ($blok) {
@@ -452,15 +525,55 @@ class DashboardController extends Controller
         }
 
         $grandBelumLunas = max(0, $grandTotalTagihan - $grandTotalTerbayar);
+
+        // Data Laporan Harian (Per Hari)
+        $pembayaranHarian = Pembayaran::with(['tagihan.unit.blok'])
+            ->whereDate('tgl_bayar', $selectedTanggal)
+            ->when($selectedBlok, function ($q) use ($selectedBlok) {
+                $q->whereHas('tagihan.unit', function ($u) use ($selectedBlok) {
+                    $u->where('blok_id', $selectedBlok);
+                });
+            })
+            ->latest('created_at')
+            ->get();
+
+        $bacaanHarian = BacaanMeter::with(['unit.blok', 'petugas'])
+            ->whereDate('created_at', $selectedTanggal)
+            ->when($selectedBlok, function ($q) use ($selectedBlok) {
+                $q->whereHas('unit', function ($u) use ($selectedBlok) {
+                    $u->where('blok_id', $selectedBlok);
+                });
+            })
+            ->latest('created_at')
+            ->get();
+
+        $harianTotalMasuk = (float) $pembayaranHarian->sum('jumlah_bayar');
+        $harianTotalTunai = (float) $pembayaranHarian->where('metode_bayar', 'Tunai')->sum('jumlah_bayar');
+        $harianTotalTransfer = (float) $pembayaranHarian->where('metode_bayar', 'Transfer')->sum('jumlah_bayar');
+        $harianJumlahTransaksi = $pembayaranHarian->count();
+        $harianJumlahBacaan = $bacaanHarian->count();
+        $harianTotalVolume = (float) $bacaanHarian->sum(fn ($b) => max(0, (float) $b->angka_meter - (float) $b->angka_meter_bulanlalu));
+
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
 
         return view('admin.laporan', compact(
+            'mode',
+            'selectedTanggal',
+            'tanggalFormatted',
             'rekapBlok',
             'grandTotalUnit',
             'grandTotalVolume',
             'grandTotalTagihan',
             'grandTotalTerbayar',
             'grandBelumLunas',
+            'pembayaranHarian',
+            'bacaanHarian',
+            'harianTotalMasuk',
+            'harianTotalTunai',
+            'harianTotalTransfer',
+            'harianJumlahTransaksi',
+            'harianJumlahBacaan',
+            'harianTotalVolume',
             'periodeStr',
             'bloks',
             'totalTerflagCount'

@@ -1,260 +1,311 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    @php
+        $tagihan = $tagihan ?? $pembayaran->tagihan;
+        $kodeNota = 'TGH-2611-' . str_pad((string) $tagihan->id, 4, '0', STR_PAD_LEFT);
+        $isLunas = ($tagihan->status_bayar === 'lunas');
+    @endphp
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Nota Resmi Pembayaran Air #PAY-2611-{{ str_pad($pembayaran->id, 4, '0', STR_PAD_LEFT) }} — Grand Sulawesi Air</title>
-
-    <!-- Google Fonts: Poppins -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Rekening Air Sumur Bor #{{ $kodeNota }} — Grand Sulawesi Parepare</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
-        .font-mono {
-            font-family: 'Poppins', sans-serif;
+        body {
+            font-family: 'Courier New', Courier, 'Consolas', monospace;
+            color: #111827;
         }
-        .tabular-nums {
-            font-variant-numeric: tabular-nums;
+        .ui-sans {
+            font-family: 'Poppins', system-ui, sans-serif;
         }
-
+        .nota-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .nota-table th,
+        .nota-table td {
+            border: 1px solid #334155;
+            padding: 3px 6px;
+            font-size: 11.5px;
+            line-height: 1.35;
+        }
+        .nota-table th {
+            background-color: #F8FAFC;
+            font-weight: 700;
+            text-align: center;
+        }
         @media print {
+            @page {
+                size: A5 landscape;
+                margin: 6mm;
+            }
             body {
-                background: white !important;
-                color: #0F172A !important;
+                background: #FFFFFF !important;
                 padding: 0 !important;
             }
             .no-print {
                 display: none !important;
             }
-            .print-shadow-none {
+            .nota-sheet {
                 box-shadow: none !important;
-                border: 1px solid #CBD5E1 !important;
-            }
-            .page-break {
-                page-break-inside: avoid;
+                border: 1px solid #334155 !important;
             }
         }
     </style>
 </head>
-<body class="bg-[#F8FAFC] font-sans text-[#1E293B] antialiased py-6 sm:py-10">
+<body class="bg-[#E2E8F0] py-6 sm:py-8 antialiased">
 
     {{-- Top Action Bar (No Print) --}}
-    <div class="max-w-3xl mx-auto px-4 mb-6 no-print flex flex-col sm:flex-row items-center justify-between gap-3">
-        <a href="{{ route('admin.riwayat-pembayaran') }}" class="inline-flex items-center gap-2 text-xs font-bold text-[#64748B] hover:text-[#0F172A] transition-colors">
+    <div class="max-w-[820px] mx-auto px-4 mb-5 no-print ui-sans flex flex-col sm:flex-row items-center justify-between gap-3">
+        <a href="{{ route('admin.tagihan') }}" class="inline-flex items-center gap-2 text-xs font-bold text-[#334155] hover:text-[#0F172A]">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-            Kembali ke Riwayat Pembayaran
+            Kembali ke Daftar Tagihan
         </a>
 
-        <div class="flex items-center gap-3">
-            <button onclick="window.print()" class="px-5 py-2.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
-                <svg class="w-4 h-4 text-[#60A5FA]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.684-.673-4.008 0-4.411 3.582-8 8-8s8 3.589 8 8c0 1.324-.433 2.932-.673 4.008M3 17.25h18m-15 3h12"/></svg>
-                <span>Cetak Nota Resmi</span>
-            </button>
-            <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-white border border-[#CBD5E1] hover:bg-[#F8FAFC] text-[#0F172A] text-xs font-bold transition-colors cursor-pointer">
-                Unduh PDF
+        <div class="flex items-center gap-2.5">
+            @if(! $isLunas)
+                <a href="{{ route('admin.pembayaran', ['tagihan_id' => $tagihan->id]) }}"
+                   class="px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold flex items-center gap-1.5">
+                    <span>Catat Pembayaran Nota Ini</span>
+                </a>
+            @endif
+            <button onclick="window.print()" class="px-5 py-2.5 bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold flex items-center gap-2 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.684-.673-4.008 0-4.411 3.582-8 8-8s8 3.589 8 8c0 1.324-.433 2.932-.673 4.008M3 17.25h18m-15 3h12"/></svg>
+                <span>Cetak Nota Fisik</span>
             </button>
         </div>
     </div>
 
-    {{-- Official Receipt Sheet --}}
-    <main class="max-w-3xl mx-auto px-4">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xs print-shadow-none p-6 sm:p-10 relative overflow-hidden page-break">
+    @php
+        $volume = (float) ($tagihan->volume_pemakaian ?? 0);
+        $meterLalu = (float) ($tagihan->bacaanMeter->angka_meter_bulanlalu ?? 0);
+        $meterKini = (float) ($tagihan->bacaanMeter->angka_meter ?? ($meterLalu + $volume));
 
-            {{-- 1. Official Header --}}
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-[#E2E8F0] gap-4">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-12 h-12 rounded-xl bg-[#0F172A] flex items-center justify-center p-2.5 shadow-xs">
-                        <x-brand-logo class="w-full h-full object-contain" />
-                    </div>
-                    <div>
-                        <h1 class="text-base font-extrabold text-[#0F172A] tracking-tight leading-tight">PENGELOLA AIR BERSIH MANDIRI</h1>
-                        <p class="text-xs font-semibold text-[#334155]">Perumahan Grand Sulawesi • Komite Pengelola Lingkungan</p>
-                        <p class="text-[11px] text-[#64748B] mt-0.5">Jl. Grand Sulawesi Boulevard No. 1, Blok Komersial, Makassar</p>
-                    </div>
+        // Rincian tarif progresif 3 tier
+        $t1Vol = min(10, $volume);
+        $t1Rate = 2000;
+        $t1Cost = $t1Vol * $t1Rate;
+
+        $t2Vol = max(0, min(10, $volume - 10));
+        $t2Rate = 3000;
+        $t2Cost = $t2Vol * $t2Rate;
+
+        $t3Vol = max(0, $volume - 20);
+        $t3Rate = 5000;
+        $t3Cost = $t3Vol * $t3Rate;
+
+        $hargaAir = $t1Cost + $t2Cost + $t3Cost;
+        $totalTagihanDb = (float) ($tagihan->total_tagihan ?? $hargaAir);
+        $biayaAdm = max(0, $totalTagihanDb - $hargaAir);
+        $denda = isset($pembayaran) && $pembayaran ? max(0, (float) $pembayaran->jumlah_bayar - ($hargaAir + $biayaAdm)) : 0;
+        $totalBayar = isset($pembayaran) && $pembayaran ? (float) $pembayaran->jumlah_bayar : ($hargaAir + $biayaAdm);
+
+        try {
+            $periodeDate = \Carbon\Carbon::createFromFormat('Y-m', (string) $tagihan->priode);
+            $periodeLabel = strtoupper($periodeDate->translatedFormat('F Y'));
+        } catch (\Throwable) {
+            $periodeLabel = strtoupper(\Carbon\Carbon::now()->translatedFormat('F Y'));
+        }
+    @endphp
+
+    {{-- ==================== LEMBAR NOTA RESMI MITRA (PT. ARISTA JAYA - GRAND SULAWESI PAREPARE) ==================== --}}
+    <main class="max-w-[820px] mx-auto px-4">
+        <div class="nota-sheet bg-white border border-[#94A3B8] shadow-md p-6 sm:p-8">
+
+            {{-- 1. KOP NOTA MITRA --}}
+            <div class="flex items-start justify-between gap-4 pb-2.5 border-b-2 border-[#1E293B]">
+                <div class="w-40 shrink-0 text-center">
+                    <svg viewBox="0 0 100 72" class="w-14 h-10 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M50 4L14 28V66H86V28L50 4Z" stroke="#1E293B" stroke-width="3.5" fill="none"/>
+                        <text x="50" y="54" text-anchor="middle" font-family="Georgia, serif" font-size="30" font-weight="bold" fill="#1E293B">AJ</text>
+                    </svg>
+                    <p class="text-[9.5px] font-bold tracking-wide text-[#0F172A] leading-tight mt-0.5">PT. ARISTA JAYA</p>
+                    <p class="text-[8px] text-[#334155] leading-tight">General Kontraktor dan Real Estate</p>
                 </div>
 
-                {{-- Status Badge & Receipt Number --}}
-                <div class="sm:text-right">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#0F172A] text-white text-[11px] font-bold uppercase tracking-wider mb-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>
-                        <span>LUNAS • TERVERIFIKASI</span>
-                    </div>
-                    <p class="text-xs font-mono font-bold text-[#0F172A] tabular-nums">NO. NOTA: PAY-2611-{{ str_pad($pembayaran->id, 4, '0', STR_PAD_LEFT) }}</p>
-                    <p class="text-[11px] text-[#64748B] font-mono tabular-nums">Tanggal Cetak: {{ \Carbon\Carbon::now()->translatedFormat('d F Y, H:i') }} WITA</p>
-                </div>
-            </div>
-
-            {{-- 2. Meta Information Columns --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 py-6 border-b border-[#E2E8F0] text-xs">
-                <div class="space-y-2 bg-[#F8FAFC] p-4 rounded-2xl border border-[#F1F5F9]">
-                    <span class="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">IDENTITAS PELANGGAN</span>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">Nama Pemilik:</span>
-                        <span class="font-bold text-[#0F172A]">{{ $pembayaran->tagihan->unit->nama_pemilik ?? 'Warga Grand Sulawesi' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">Unit Hunian:</span>
-                        <span class="font-mono font-bold px-2 py-0.5 rounded-md bg-[#0F172A] text-white tabular-nums">
-                            {{ $pembayaran->tagihan->unit->nomor_rumah ?? '—' }} ({{ $pembayaran->tagihan->unit->blok->nama_blok ?? 'Blok A' }})
-                        </span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">ID Pelanggan:</span>
-                        <span class="font-mono text-[#0F172A] font-semibold tabular-nums">GS-{{ str_pad($pembayaran->tagihan->unit->id ?? 1, 4, '0', STR_PAD_LEFT) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">Kontak / WhatsApp:</span>
-                        <span class="font-mono text-[#0F172A] tabular-nums">{{ $pembayaran->tagihan->unit->nomor_wa ?? '0812-4411-9800' }}</span>
-                    </div>
-                </div>
-
-                <div class="space-y-2 bg-[#F8FAFC] p-4 rounded-2xl border border-[#F1F5F9]">
-                    <span class="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">DETAIL TRANSAKSI</span>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">ID Tagihan:</span>
-                        <span class="font-mono text-[#0F172A] font-semibold tabular-nums">TGH-2611-{{ str_pad($pembayaran->tagihan->id, 4, '0', STR_PAD_LEFT) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">Periode Tagihan:</span>
-                        <span class="font-bold text-[#0F172A]">{{ \Carbon\Carbon::parse($pembayaran->tgl_bayar)->translatedFormat('F Y') }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">Tanggal Pembayaran:</span>
-                        <span class="font-mono font-bold text-[#0F172A] tabular-nums">{{ \Carbon\Carbon::parse($pembayaran->tgl_bayar)->translatedFormat('d F Y') }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-[#64748B]">Metode Pembayaran:</span>
-                        <span class="font-bold text-[#2563EB]">{{ $pembayaran->metode_bayar }}</span>
-                    </div>
+                <div class="flex-1 text-center pr-6">
+                    <p class="text-[12px] font-bold tracking-widest uppercase text-[#0F172A]">PERUMAHAN</p>
+                    <h1 class="text-[17px] font-extrabold tracking-wider uppercase text-[#0F172A] leading-tight">
+                        GRAND SULAWESI PAREPARE
+                    </h1>
+                    <p class="text-[9px] text-[#334155] mt-1 leading-snug">
+                        KANTOR PUSAT : Jl. Tun Abdul Razak-Perum Bumi Aroepala Ruko 10-12 Telp/Fax 2079998-8223011 Gowa
+                    </p>
+                    <p class="text-[9px] text-[#334155] leading-snug">
+                        CABANG PAREPARE : Jl. Jend. M. Yusuf/Lingkar Blok A No.12 Kel. Lompoe-Kec. Bacukiki Telp. 0421-3313537
+                    </p>
                 </div>
             </div>
 
-            {{-- 3. Detail Meter & Pemakaian Air --}}
-            <div class="py-6 border-b border-[#E2E8F0]">
-                <h2 class="text-xs font-bold text-[#64748B] uppercase tracking-wider mb-3">RINCIAN STAND METER & PEMAKAIAN</h2>
-                <div class="grid grid-cols-3 gap-3 text-center mb-4">
-                    <div class="p-3.5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
-                        <p class="text-[11px] text-[#64748B] font-medium">Meter Lalu</p>
-                        <p class="text-base font-bold text-[#0F172A] font-mono tabular-nums mt-0.5">
-                            {{ $pembayaran->tagihan->bacaanMeter->angka_meter_bulanlalu ?? 4198 }} <span class="text-xs text-[#64748B] font-sans">m³</span>
-                        </p>
-                    </div>
-                    <div class="p-3.5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
-                        <p class="text-[11px] text-[#64748B] font-medium">Meter Sekarang</p>
-                        <p class="text-base font-bold text-[#2563EB] font-mono tabular-nums mt-0.5">
-                            {{ $pembayaran->tagihan->bacaanMeter->angka_meter ?? 4224 }} <span class="text-xs text-[#64748B] font-sans">m³</span>
-                        </p>
-                    </div>
-                    <div class="p-3.5 bg-[#EFF6FF] rounded-xl border border-[#BFDBFE]">
-                        <p class="text-[11px] text-[#1E40AF] font-bold">Total Volume Pakai</p>
-                        <p class="text-base font-extrabold text-[#1D4ED8] font-mono tabular-nums mt-0.5">
-                            {{ $pembayaran->tagihan->volume_pemakaian }} <span class="text-xs font-sans">m³</span>
-                        </p>
-                    </div>
-                </div>
-
-                @php
-                    $volume = (float) $pembayaran->tagihan->volume_pemakaian;
-                    $t1Vol = min(10, $volume);
-                    $t1Cost = $t1Vol * 2000;
-                    $t2Vol = max(0, min(10, $volume - 10));
-                    $t2Cost = $t2Vol * 3000;
-                    $t3Vol = max(0, $volume - 20);
-                    $t3Cost = $t3Vol * 5000;
-                @endphp
-                <table class="w-full text-xs text-left">
-                    <thead>
-                        <tr class="bg-[#F8FAFC] text-[#64748B] font-bold border-b border-[#E2E8F0]">
-                            <th class="py-2.5 px-3">Tingkatan Tarif Progresif</th>
-                            <th class="py-2.5 px-3 text-center">Volume (m³)</th>
-                            <th class="py-2.5 px-3 text-right">Tarif / m³</th>
-                            <th class="py-2.5 px-3 text-right">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-[#F1F5F9]">
-                        <tr>
-                            <td class="py-2.5 px-3 font-medium text-[#0F172A]">Blok 1 (0 – 10 m³) • Tarif Dasar Subsidi</td>
-                            <td class="py-2.5 px-3 text-center font-mono tabular-nums">{{ $t1Vol }} m³</td>
-                            <td class="py-2.5 px-3 text-right font-mono tabular-nums">Rp 2.000</td>
-                            <td class="py-2.5 px-3 text-right font-mono font-bold tabular-nums">Rp {{ number_format($t1Cost, 0, ',', '.') }}</td>
-                        </tr>
-                        @if($t2Vol > 0)
-                        <tr>
-                            <td class="py-2.5 px-3 font-medium text-[#0F172A]">Blok 2 (11 – 20 m³) • Tarif Menengah</td>
-                            <td class="py-2.5 px-3 text-center font-mono tabular-nums">{{ $t2Vol }} m³</td>
-                            <td class="py-2.5 px-3 text-right font-mono tabular-nums">Rp 3.000</td>
-                            <td class="py-2.5 px-3 text-right font-mono font-bold tabular-nums">Rp {{ number_format($t2Cost, 0, ',', '.') }}</td>
-                        </tr>
-                        @endif
-                        @if($t3Vol > 0)
-                        <tr>
-                            <td class="py-2.5 px-3 font-medium text-[#0F172A]">Blok 3 (> 20 m³) • Tarif Konsumsi Tinggi</td>
-                            <td class="py-2.5 px-3 text-center font-mono tabular-nums">{{ $t3Vol }} m³</td>
-                            <td class="py-2.5 px-3 text-right font-mono tabular-nums">Rp 5.000</td>
-                            <td class="py-2.5 px-3 text-right font-mono font-bold tabular-nums">Rp {{ number_format($t3Cost, 0, ',', '.') }}</td>
-                        </tr>
-                        @endif
-                    </tbody>
-                    <tfoot>
-                        <tr class="border-t-2 border-[#0F172A] bg-[#F8FAFC]">
-                            <th colspan="3" class="py-3 px-3 text-xs font-bold text-[#0F172A]">TOTAL DIBAYARKAN (LUNAS)</th>
-                            <th class="py-3 px-3 text-sm font-extrabold text-[#0F172A] text-right font-mono tabular-nums">
-                                Rp {{ number_format($pembayaran->jumlah_bayar, 0, ',', '.') }}
-                            </th>
-                        </tr>
-                    </tfoot>
-                </table>
+            {{-- Subjudul Rekening --}}
+            <div class="text-center py-2">
+                <p class="text-[12px] font-bold tracking-widest uppercase text-[#0F172A]">REKENING AIR SUMUR BOR</p>
+                <p class="text-[11.5px] font-bold tracking-wider uppercase text-[#0F172A]">BULAN {{ $periodeLabel }}</p>
             </div>
 
-            {{-- 4. Cryptographic Validation & Security Block --}}
-            <div class="pt-6">
-                <div class="bg-[#0F172A] text-white p-5 rounded-2xl flex flex-col sm:flex-row items-center gap-5">
+            {{-- 2. TABEL IDENTITAS PELANGGAN --}}
+            <table class="nota-table mb-3">
+                <tr>
+                    <td class="w-[15%] font-bold">No. Langg</td>
+                    <td class="w-[15%] font-bold">Gol. Tarif</td>
+                    <td class="w-[13%] font-bold">Tn/Ny. :</td>
+                    <td class="w-[57%] text-center font-bold uppercase">{{ $tagihan->unit->nama_pemilik ?? 'WARGA GRAND SULAWESI' }}</td>
+                </tr>
+                <tr>
+                    <td class="font-bold">{{ $tagihan->unit->nomor_rumah ?? '—' }}</td>
+                    <td class="text-center">RT-1</td>
+                    <td class="font-bold">Alamat :</td>
+                    <td class="text-center font-bold">{{ $tagihan->unit->nomor_rumah ?? '—' }} ({{ $tagihan->unit->blok->nama_blok ?? 'Blok A' }})</td>
+                </tr>
+            </table>
 
-                    {{-- QR Code Asli (SimpleSoftwareIO/simple-qrcode) berisi URL verifikasi publik --}}
-                    <div class="bg-white p-2.5 rounded-xl shrink-0 shadow-md flex flex-col items-center">
-                        <div class="w-36 h-36 [&>svg]:w-full [&>svg]:h-full">{!! $qrSvg !!}</div>
-                        <span class="text-[8px] text-[#64748B] font-semibold mt-1">Scan untuk verifikasi keaslian</span>
-                    </div>
+            {{-- 3. DUA TABEL BERDAMPINGAN: HARGA AIR (KIRI) & ADM DLL (KANAN) --}}
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-3">
+                {{-- Kiri: Harga Satuan & Pemakaian --}}
+                <div class="md:col-span-7">
+                    <table class="nota-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Harga Satuan</th>
+                                <th class="w-[18%]">Pemakaian</th>
+                                <th class="w-[30%]">Harga Air</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="w-[24%]">0-10 M3</td>
+                                <td class="w-[28%] text-right">Rp {{ number_format($t1Rate, 0, ',', '.') }}</td>
+                                <td class="text-center">{{ number_format($t1Vol, 0) }}</td>
+                                <td class="text-right">Rp {{ number_format($t1Cost, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>11-20 M3</td>
+                                <td class="text-right">Rp {{ number_format($t2Rate, 0, ',', '.') }}</td>
+                                <td class="text-center">{{ number_format($t2Vol, 0) }}</td>
+                                <td class="text-right">Rp {{ number_format($t2Cost, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>&gt; 20 M3</td>
+                                <td class="text-right">Rp {{ number_format($t3Rate, 0, ',', '.') }}</td>
+                                <td class="text-center">{{ number_format($t3Vol, 0) }}</td>
+                                <td class="text-right">Rp {{ number_format($t3Cost, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="font-bold bg-[#F8FAFC]">
+                                <td colspan="3" class="text-center">TOTAL</td>
+                                <td class="text-right">Rp {{ number_format($hargaAir, 0, ',', '.') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                    {{-- Cryptographic Digest & Signature Metadata --}}
-                    <div class="space-y-1.5 flex-1 min-w-0 text-left">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-[#60A5FA] animate-pulse"></span>
-                            <span class="text-xs font-bold text-[#60A5FA] tracking-wider uppercase">TANDA TANGAN DIGITAL RESMI (RSA-2048)</span>
-                        </div>
-                        <p class="text-[11px] text-[#94A3B8] leading-relaxed">
-                            Dokumen ini dienkripsi dan diotorisasi secara kriptografis menggunakan algoritma RSA-2048 dengan digest SHA-256 oleh Pengelola Lingkungan Grand Sulawesi.
-                        </p>
+                {{-- Kanan: ADM dll. --}}
+                <div class="md:col-span-5">
+                    <table class="nota-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">ADM dll.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="w-[45%]">Pem Meter</td>
+                                <td class="text-right">-</td>
+                            </tr>
+                            <tr>
+                                <td>PPN 10%</td>
+                                <td class="text-right">Rp -</td>
+                            </tr>
+                            <tr>
+                                <td>Biaya ADM</td>
+                                <td class="text-right">Rp {{ number_format($biayaAdm, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="font-bold bg-[#F8FAFC]">
+                                <td>TOTAL</td>
+                                <td class="text-right">Rp {{ number_format($biayaAdm, 0, ',', '.') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-                        <div class="pt-1 space-y-1">
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-[10px] font-mono text-[#64748B] shrink-0">SHA-256 Digest:</span>
-                                <span class="text-[10px] font-mono text-[#60A5FA] truncate">{{ $hashSha256 }}</span>
-                            </div>
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-[10px] font-mono text-[#64748B] shrink-0">RSA-2048 Sig:</span>
-                                <span class="text-[10px] font-mono text-[#E2E8F0] truncate">{{ substr($signatureRsa, 0, 48) }}...{{ substr($signatureRsa, -16) }}</span>
-                            </div>
-                        </div>
+            {{-- 4. BAGIAN BAWAH: STAND METER + TTD ADMIN (KIRI), QR VERIFIKASI RSA-2048 (TENGAH), TOTAL BAYAR (KANAN) --}}
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-1">
+
+                {{-- Kolom Kiri: Stand Meter & Tanda Tangan Admin --}}
+                <div class="md:col-span-4 space-y-3">
+                    <table class="nota-table text-center">
+                        <thead>
+                            <tr>
+                                <th>Bulan Ini</th>
+                                <th>Bulan Lalu</th>
+                                <th>Pemakaian</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="font-bold">
+                                <td>{{ number_format($meterKini, 0) }}</td>
+                                <td>{{ number_format($meterLalu, 0) }}</td>
+                                <td>{{ number_format($volume, 0) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="pt-1 text-center text-[11px] leading-relaxed">
+                        <p>Ttd.</p>
+                        <div class="h-10"></div>
+                        <p class="font-bold underline">Admin</p>
+                        <p>PT. Arista Jaya</p>
                     </div>
                 </div>
 
-                {{-- Signatures Footer --}}
-                <div class="mt-8 pt-4 flex justify-between items-end text-xs">
-                    <div>
-                        <p class="text-[10px] text-[#64748B] uppercase tracking-wider font-semibold">Catatan Penting:</p>
-                        <p class="text-[11px] text-[#64748B] mt-0.5">Nota ini merupakan bukti pelunasan sah pengganti kuitansi konvensional.</p>
-                        <p class="text-[11px] text-[#64748B]">Simpan nota digital ini untuk pencatatan dan rekonsiliasi tahunan.</p>
+                {{-- Kolom Tengah: PENEMPATAN QR CODE VERIFIKASI KRIPTOGRAFIS RSA-2048 --}}
+                <div class="md:col-span-3 flex flex-col items-center justify-center text-center border border-[#334155] p-2 bg-[#F8FAFC]">
+                    <span class="text-[8.5px] font-bold uppercase tracking-wider text-[#0F172A] mb-1">
+                        VERIFIKASI QR RSA-2048
+                    </span>
+                    <div class="w-24 h-24 bg-white p-1 border border-[#CBD5E1] [&>svg]:w-full [&>svg]:h-full">
+                        {!! $qrSvg !!}
                     </div>
-                    <div class="text-center w-48">
-                        <p class="text-[11px] text-[#64748B] mb-12">Makassar, {{ \Carbon\Carbon::parse($pembayaran->tgl_bayar)->translatedFormat('d F Y') }}</p>
-                        <div class="border-t border-[#0F172A] pt-1">
-                            <p class="font-bold text-[#0F172A]">Administrator Keuangan</p>
-                            <p class="text-[10px] text-[#64748B]">Pengelola Grand Sulawesi</p>
-                        </div>
+                    <span class="text-[8px] font-bold text-[#0F172A] mt-1">
+                        {{ $isLunas ? 'LUNAS' : 'TAGIHAN RESMI' }} • {{ $kodeNota }}
+                    </span>
+                    <span class="text-[7.5px] text-[#475569] break-all leading-tight mt-0.5">
+                        SHA256: {{ substr($hashSha256, 0, 14) }}...
+                    </span>
+                </div>
+
+                {{-- Kolom Kanan: Ringkasan Total Bayar & Denda --}}
+                <div class="md:col-span-5 space-y-2">
+                    <table class="nota-table">
+                        <thead>
+                            <tr>
+                                <th>Harga Air</th>
+                                <th>ADM dll.</th>
+                                <th>TOTAL BAYAR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="font-bold text-right">
+                                <td>Rp {{ number_format($hargaAir, 0, ',', '.') }}</td>
+                                <td>Rp {{ number_format($biayaAdm, 0, ',', '.') }}</td>
+                                <td>Rp {{ number_format($hargaAir + $biayaAdm, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" class="font-bold">DENDA</td>
+                                <td class="text-right">Rp {{ number_format($denda, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr class="font-bold bg-[#F8FAFC]">
+                                <td colspan="2">TOTAL BAYAR</td>
+                                <td class="text-right text-[12.5px]">Rp {{ number_format($totalBayar, 0, ',', '.') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="text-[9.5px] text-[#334155] flex items-center justify-between pt-1">
+                        <span>Status: <strong>{{ $isLunas ? 'LUNAS (' . ($pembayaran->metode_bayar ?? 'Tunai') . ')' : 'BELUM DIBAYAR (NOTA TAGIHAN)' }}</strong></span>
+                        <span>Jatuh Tempo: <strong>{{ \Carbon\Carbon::parse($tagihan->tgl_jatuh_tempo)->format('d/m/Y') }}</strong></span>
                     </div>
                 </div>
 

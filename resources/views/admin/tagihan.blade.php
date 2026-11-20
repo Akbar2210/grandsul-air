@@ -80,21 +80,21 @@
                 <span class="font-bold text-[#0F172A] font-mono block mt-0.5 tabular-nums">{{ $batchInfo['success_count'] }} sukses, {{ $batchInfo['failed_count'] }} gagal</span>
             </div>
             <div class="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                <span class="text-[10px] text-[#64748B] uppercase font-bold block">WhatsApp Reminder</span>
-                <span class="font-bold text-[#2563EB] block mt-0.5">Terkirim otomatis</span>
+                <span class="text-[10px] text-[#64748B] uppercase font-bold block">Surat Tunggakan (≥ 4 Bln)</span>
+                <a href="{{ route('admin.surat-tunggakan') }}" class="font-bold text-[#2563EB] hover:underline block mt-0.5">Terbit Otomatis →</a>
             </div>
         </div>
     </div>
 
     {{-- ==================== TABEL DAFTAR TAGIHAN ==================== --}}
     <div class="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
-        <div class="px-6 py-5 border-b border-[#F1F5F9] flex items-center justify-between">
+        <div class="px-6 py-5 border-b border-[#F1F5F9] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-                <h3 class="text-sm font-bold text-[#0F172A]">Daftar Tagihan Pelanggan</h3>
-                <p class="text-xs text-[#64748B] mt-0.5">Menampilkan total {{ $tagihans->total() }} invoice tagihan terdaftar</p>
+                <h3 class="text-sm font-bold text-[#0F172A]">Daftar Tagihan & Nota Rekening Pelanggan</h3>
+                <p class="text-xs text-[#64748B] mt-0.5">Menampilkan total {{ $tagihans->total() }} tagihan — Nota fisik otomatis dibuat sistem untuk dicetak sebelum dibayar pelanggan</p>
             </div>
-            <span class="text-xs text-[#64748B] font-medium">
-                Tarif Progresif Bertingkat
+            <span class="text-xs text-[#0F172A] font-semibold px-2.5 py-1 bg-[#F8FAFC] border border-[#CBD5E1]">
+                Nota Fisik Siap Cetak
             </span>
         </div>
 
@@ -108,7 +108,8 @@
                         <th class="py-3.5 px-4">Volume (m³)</th>
                         <th class="py-3.5 px-4">Total Tagihan</th>
                         <th class="py-3.5 px-4">Jatuh Tempo</th>
-                        <th class="py-3.5 px-5 text-center">Status</th>
+                        <th class="py-3.5 px-4 text-center">Status</th>
+                        <th class="py-3.5 px-5 text-right">Nota Fisik & Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#F1F5F9]">
@@ -135,7 +136,7 @@
                         <td class="py-3.5 px-4 font-mono text-[#64748B] tabular-nums">
                             {{ \Carbon\Carbon::parse($t->tgl_jatuh_tempo)->translatedFormat('d M Y') }}
                         </td>
-                        <td class="py-3.5 px-5 text-center">
+                        <td class="py-3.5 px-4 text-center">
                             @if($t->status_bayar === 'lunas')
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F8FAFC] text-[#0F172A] font-semibold text-[11px] border border-[#CBD5E1]">
                                 <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
@@ -153,10 +154,26 @@
                             </span>
                             @endif
                         </td>
+                        <td class="py-3.5 px-5 text-right whitespace-nowrap">
+                            <div class="inline-flex items-center gap-1.5">
+                                <a href="{{ route('admin.tagihan.nota', $t->id) }}"
+                                   target="_blank"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-[11px] transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.684-.673-4.008 0-4.411 3.582-8 8-8s8 3.589 8 8c0 1.324-.433 2.932-.673 4.008M3 17.25h18m-15 3h12"/></svg>
+                                    <span>Cetak Nota</span>
+                                </a>
+                                @if($t->status_bayar !== 'lunas')
+                                <a href="{{ route('admin.pembayaran', ['tagihan_id' => $t->id]) }}"
+                                   class="inline-flex items-center px-2.5 py-1.5 bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#2563EB] border border-[#CBD5E1] font-bold text-[11px] transition-colors">
+                                    Bayar
+                                </a>
+                                @endif
+                            </div>
+                        </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-[#64748B]">
+                        <td colspan="8" class="py-12 text-center text-[#64748B]">
                             <p class="font-semibold text-sm">Belum ada data tagihan untuk filter yang dipilih.</p>
                             <p class="text-xs text-[#94A3B8] mt-1">Tekan tombol "Proses Tagihan (Batch)" di atas untuk memproses tagihan periode berjalan.</p>
                         </td>

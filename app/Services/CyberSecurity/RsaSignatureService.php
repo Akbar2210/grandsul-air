@@ -4,6 +4,7 @@ namespace App\Services\CyberSecurity;
 
 use App\Models\DigitalSignature;
 use App\Models\Pembayaran;
+use App\Models\Tagihan;
 use Carbon\Carbon;
 
 /**
@@ -78,11 +79,30 @@ class RsaSignatureService
     }
 
     /**
+     * Menyusun string kanonik tagihan untuk di-hash dengan SHA-256 (terbit otomatis saat Proses Tagihan Batch).
+     */
+    public function buildCanonicalDataFromTagihan(Tagihan $tagihan): string
+    {
+        $tagihan->loadMissing(['unit']);
+
+        $nomorRumah = $tagihan->unit->nomor_rumah ?? 'UNKNOWN';
+        $periode = $tagihan->priode ?? 'UNKNOWN';
+        $volume = (int) ($tagihan->volume_pemakaian ?? 0);
+        $nominal = number_format((float) $tagihan->total_tagihan, 2, '.', '');
+
+        return "NOTA_TAGIHAN|{$tagihan->id}|{$nomorRumah}|{$periode}|{$volume}|{$nominal}|GRAND_SULAWESI";
+    }
+
+    /**
      * Menyusun string kanonik transaksi nota untuk di-hash dengan SHA-256 (SRS FR-006).
      */
     public function buildCanonicalData(Pembayaran $pembayaran): string
     {
         $pembayaran->loadMissing(['tagihan.unit']);
+
+        if ($pembayaran->tagihan) {
+            return $this->buildCanonicalDataFromTagihan($pembayaran->tagihan);
+        }
 
         $nomorRumah = $pembayaran->tagihan->unit->nomor_rumah ?? 'UNKNOWN';
         $periode = $pembayaran->tagihan->priode ?? 'UNKNOWN';
@@ -123,7 +143,7 @@ class RsaSignatureService
     }
 
     /**
-     * Membuat atau mengambil tanda tangan digital resmi untuk pembayaran berstatus Lunas (idempoten sesuai FR-006 A4).
+     * Menerbitkan atau mengambil tanda tangan digital resmi untuk Nota Tagihan (otomatis saat Proses Tagihan Batch).
      *
      * @return array{
      *     record: DigitalSignature,
@@ -132,23 +152,17 @@ class RsaSignatureService
      *     signature_rsa: string,
      *     qr_payload: string
      * }
-     *
-     * @throws \DomainException Jika tagihan belum berstatus lunas.
      */
-    public function issueReceiptSignature(Pembayaran $pembayaran): array
+    public function issueTagihanSignature(Tagihan $tagihan, ?string $baseUrl = null): array
     {
-        $pembayaran->loadMissing(['tagihan.unit']);
+        $tagihan->loadMissing(['unit']);
 
-        if ($pembayaran->tagihan->status_bayar !== 'lunas') {
-            throw new \DomainException('Nota kriptografis hanya dapat diterbitkan untuk tagihan berstatus LUNAS.');
-        }
-
-        $canonicalData = $this->buildCanonicalData($pembayaran);
+        $canonicalData = $this->buildCanonicalDataFromTagihan($tagihan);
         $hashSha256 = $this->generateHashSha256($canonicalData);
 
-        $existing = DigitalSignature::where('tagihan_id', $pembayaran->tagihan_id)->first();
-        if ($existing) {
-            $qrPayload = $this->buildQrPayload($pembayaran->id, $existing->hash_sha256, $existing->digital_signature);
+        $existing = DigitalSignature::where('tagihan_id', $tagihan->id)->first();
+        if ($existing && hash_equals($existing->hash_sha256, $hashSha256)) {
+            $qrPayload = $this->buildQrPayloadForTagihan($tagihan->id, $existing->hash_sha256, $existing->digital_signature, $baseUrl);
 
             return [
                 'record' => $existing,
@@ -161,18 +175,20 @@ class RsaSignatureService
 
         $keys = $this->ensureKeyPair();
         $signatureRsa = $this->signCanonicalData($canonicalData);
-        $qrCodePath = "qrcodes/nota-pay-{$pembayaran->id}.svg";
+        $qrCodePath = "qrcodes/nota-tgh-{$tagihan->id}.svg";
 
-        $record = DigitalSignature::create([
-            'tagihan_id' => $pembayaran->tagihan_id,
-            'hash_sha256' => $hashSha256,
-            'digital_signature' => $signatureRsa,
-            'public_key_fingerprint' => $keys['fingerprint'],
-            'qr_code_path' => $qrCodePath,
-            'tgl_signed' => Carbon::now(),
-        ]);
+        $record = DigitalSignature::updateOrCreate(
+            ['tagihan_id' => $tagihan->id],
+            [
+                'hash_sha256' => $hashSha256,
+                'digital_signature' => $signatureRsa,
+                'public_key_fingerprint' => $keys['fingerprint'],
+                'qr_code_path' => $qrCodePath,
+                'tgl_signed' => Carbon::now(),
+            ]
+        );
 
-        $qrPayload = $this->buildQrPayload($pembayaran->id, $hashSha256, $signatureRsa);
+        $qrPayload = $this->buildQrPayloadForTagihan($tagihan->id, $hashSha256, $signatureRsa, $baseUrl);
 
         return [
             'record' => $record,
@@ -184,7 +200,40 @@ class RsaSignatureService
     }
 
     /**
-     * Membentuk payload QR Code yang memuat ID pembayaran, digest SHA-256, dan potongan signature RSA.
+     * Membuat atau mengambil tanda tangan digital resmi untuk pembayaran.
+     *
+     * @return array{
+     *     record: DigitalSignature,
+     *     canonical_data: string,
+     *     hash_sha256: string,
+     *     signature_rsa: string,
+     *     qr_payload: string
+     * }
+     */
+    public function issueReceiptSignature(Pembayaran $pembayaran): array
+    {
+        $pembayaran->loadMissing(['tagihan.unit']);
+
+        return $this->issueTagihanSignature($pembayaran->tagihan);
+    }
+
+    /**
+     * Membentuk payload QR Code untuk Tagihan (Nota Rekening Air Sumur Bor).
+     */
+    public function buildQrPayloadForTagihan(int $tagihanId, string $hashSha256, string $signatureRsa, ?string $baseUrl = null): string
+    {
+        $shortSig = substr($signatureRsa, 0, 32);
+        $pathAndQuery = "/verifikasi-nota?id={$tagihanId}&type=tagihan&hash={$hashSha256}&sig=".urlencode($shortSig);
+
+        if ($baseUrl) {
+            return rtrim($baseUrl, '/').$pathAndQuery;
+        }
+
+        return url($pathAndQuery);
+    }
+
+    /**
+     * Membentuk payload QR Code yang memuat ID pembayaran/tagihan, digest SHA-256, dan potongan signature RSA.
      */
     public function buildQrPayload(int $pembayaranId, string $hashSha256, string $signatureRsa, ?string $baseUrl = null): string
     {
