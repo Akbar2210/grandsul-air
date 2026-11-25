@@ -6,6 +6,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VerifikasiNotaController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -77,6 +78,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/master/tarif', [AdminDashboardController::class, 'storeTarif'])->name('master.tarif.store');
     Route::post('/master/tarif/{id}', [AdminDashboardController::class, 'updateTarif'])->name('master.tarif.update');
     Route::delete('/master/tarif/{id}', [AdminDashboardController::class, 'destroyTarif'])->name('master.tarif.destroy');
+    Route::post('/master/petugas', [AdminDashboardController::class, 'storePetugas'])->name('master.petugas.store');
+    Route::post('/master/petugas/{id}', [AdminDashboardController::class, 'updatePetugas'])->name('master.petugas.update');
+    Route::post('/master/petugas/{id}/toggle-status', [AdminDashboardController::class, 'togglePetugasStatus'])->name('master.petugas.toggle-status');
+    Route::delete('/master/petugas/{id}', [AdminDashboardController::class, 'destroyPetugas'])->name('master.petugas.destroy');
+    Route::post('/master/blok', [AdminDashboardController::class, 'storeBlok'])->name('master.blok.store');
 
     // 8. Audit Log Aktivitas
     Route::get('/audit', [AdminDashboardController::class, 'audit'])->name('audit');
@@ -104,8 +110,8 @@ Route::middleware('auth')->group(function () {
 
 // Fallback streaming foto & berkas storage publik (terutama untuk environment Windows/local)
 Route::get('/storage/{path}', function (string $path) {
-    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
-        return \Illuminate\Support\Facades\Storage::disk('public')->response($path);
+    if (Storage::disk('public')->exists($path)) {
+        return Storage::disk('public')->response($path);
     }
 
     $publicFile = public_path('storage/'.$path);

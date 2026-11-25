@@ -18,6 +18,7 @@ use App\Services\CyberSecurity\RsaSignatureService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DashboardController extends Controller
@@ -800,7 +801,7 @@ class DashboardController extends Controller
             ->where('bacaan_meters.bulan', $now->month)
             ->where('bacaan_meters.tahun', $now->year)
             ->whereIn('bacaan_meters.status_verifikasi', ['valid', 'ter_flag'])
-            ->selectRaw('unit_hunians.blok_id, COUNT(DISTINCT bacaan_meters.unit_id) AS tercatat_count, SUM(GREATEST(0, bacaan_meters.angka_meter - bacaan_meters.angka_meter_bulanlalu)) AS total_volume')
+            ->selectRaw('unit_hunians.blok_id, COUNT(DISTINCT bacaan_meters.unit_id) AS tercatat_count, SUM(CASE WHEN (bacaan_meters.angka_meter - bacaan_meters.angka_meter_bulanlalu) > 0 THEN (bacaan_meters.angka_meter - bacaan_meters.angka_meter_bulanlalu) ELSE 0 END) AS total_volume')
             ->groupBy('unit_hunians.blok_id')
             ->get()
             ->keyBy('blok_id');
@@ -1089,6 +1090,195 @@ class DashboardController extends Controller
         ]);
 
         return redirect()->route('admin.master', ['tab' => 'tarif'])->with('success', "Skema tarif {$label} berhasil dihapus.");
+    }
+
+    /**
+     * Tambah Petugas Lapangan Baru pada Data Master
+     */
+    public function storePetugas(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|max:255',
+            'password' => 'required|string|min:6',
+            'zona_type' => 'nullable|string',
+            'zona_blok' => 'nullable|array',
+        ]);
+
+        $emailInput = trim($request->input('email'));
+        if (! str_contains($emailInput, '@')) {
+            $emailInput = strtolower(str_replace(' ', '', $emailInput)).'@grandsul.web.id';
+        }
+
+        // Validasi keunikan email
+        if (User::where('email', $emailInput)->exists()) {
+            return back()->withInput()->with('error', "Username/Email '{$emailInput}' sudah digunakan oleh pengguna lain.");
+        }
+
+        $zonaPenugasan = 'Semua Blok (A, B, C, D, E, F)';
+        if ($request->input('zona_type') === 'spesifik' && ! empty($request->input('zona_blok'))) {
+            $zonaPenugasan = implode(', ', $request->input('zona_blok'));
+        }
+
+        $petugas = User::create([
+            'name' => $request->input('name'),
+            'email' => $emailInput,
+            'password' => Hash::make($request->input('password')),
+            'zona_penugasan' => $zonaPenugasan,
+        ]);
+
+        $petugas->assignRole('petugas');
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Menambahkan petugas lapangan baru: {$petugas->name} ({$petugas->email}) dengan zona {$zonaPenugasan}",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'petugas'])
+            ->with('success', "Petugas lapangan '{$petugas->name}' berhasil ditambahkan dengan username/email: {$petugas->email}.");
+    }
+
+    /**
+     * Update data Petugas Lapangan (Kelola Username, Password, dan Zona Penugasan)
+     */
+    public function updatePetugas(Request $request, int|string $id)
+    {
+        $petugas = User::findOrFail($id);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|max:255',
+            'password' => 'nullable|string|min:6',
+            'zona_type' => 'nullable|string',
+            'zona_blok' => 'nullable|array',
+        ]);
+
+        $emailInput = trim($request->input('email'));
+        if (! str_contains($emailInput, '@')) {
+            $emailInput = strtolower(str_replace(' ', '', $emailInput)).'@grandsul.web.id';
+        }
+
+        // Validasi keunikan email selain user ini
+        if (User::where('email', $emailInput)->where('id', '!=', $petugas->id)->exists()) {
+            return back()->withInput()->with('error', "Username/Email '{$emailInput}' sudah digunakan oleh akun lain.");
+        }
+
+        $zonaPenugasan = 'Semua Blok (A, B, C, D, E, F)';
+        if ($request->input('zona_type') === 'spesifik' && ! empty($request->input('zona_blok'))) {
+            $zonaPenugasan = implode(', ', $request->input('zona_blok'));
+        }
+
+        $petugas->name = $request->input('name');
+        $petugas->email = $emailInput;
+        $petugas->zona_penugasan = $zonaPenugasan;
+
+        if ($request->has('is_active')) {
+            $petugas->is_active = $request->boolean('is_active');
+        }
+
+        if ($request->filled('password')) {
+            $petugas->password = Hash::make($request->input('password'));
+        }
+
+        $petugas->save();
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Memperbarui akun petugas: {$petugas->name} ({$petugas->email}) dengan zona {$zonaPenugasan}".($request->filled('password') ? ' (password diperbarui)' : ''),
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'petugas'])
+            ->with('success', "Data akun petugas '{$petugas->name}' berhasil diperbarui.");
+    }
+
+    /**
+     * Toggle status aktif/non-aktif Petugas Lapangan
+     */
+    public function togglePetugasStatus(Request $request, int|string $id)
+    {
+        $petugas = User::findOrFail($id);
+
+        if ($petugas->id === Auth::id()) {
+            return redirect()->route('admin.master', ['tab' => 'petugas'])
+                ->with('error', 'Anda tidak dapat menonaktifkan akun yang sedang digunakan.');
+        }
+
+        $petugas->is_active = ! (bool) ($petugas->is_active ?? true);
+        $petugas->save();
+
+        $statusStr = $petugas->is_active ? 'diaktifkan kembali' : 'dinonaktifkan';
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Mengubah status petugas {$petugas->name} ({$petugas->email}) menjadi {$statusStr}",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'petugas'])
+            ->with('success', "Akun petugas '{$petugas->name}' berhasil {$statusStr}.");
+    }
+
+    /**
+     * Hapus Petugas Lapangan
+     */
+    public function destroyPetugas(Request $request, int|string $id)
+    {
+        $petugas = User::findOrFail($id);
+
+        if ($petugas->id === Auth::id()) {
+            return redirect()->route('admin.master', ['tab' => 'petugas'])
+                ->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        }
+
+        if (User::role('petugas')->count() <= 1) {
+            return redirect()->route('admin.master', ['tab' => 'petugas'])
+                ->with('error', 'Tidak dapat menghapus petugas terakhir. Sistem membutuhkan minimal 1 petugas lapangan aktif.');
+        }
+
+        $nama = $petugas->name;
+        $email = $petugas->email;
+        $petugas->delete();
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Menghapus petugas lapangan: {$nama} ({$email})",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'petugas'])
+            ->with('success', "Petugas lapangan '{$nama}' berhasil dihapus dari sistem.");
+    }
+
+    /**
+     * Tambah Blok Hunian Baru pada Data Master
+     */
+    public function storeBlok(Request $request)
+    {
+        $request->validate([
+            'nama_blok' => 'required|string|max:100|unique:blok_hunians,nama_blok',
+            'keterangan_wilayah' => 'nullable|string|max:255',
+        ]);
+
+        $blok = BlokHunian::create([
+            'nama_blok' => trim($request->input('nama_blok')),
+            'keterangan_wilayah' => $request->input('keterangan_wilayah'),
+        ]);
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Menambahkan blok hunian baru: {$blok->nama_blok}",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'blok'])
+            ->with('success', "Blok hunian '{$blok->nama_blok}' berhasil ditambahkan ke Data Master.");
     }
 
     /**

@@ -335,7 +335,8 @@
                 <input type="hidden" name="confidence_score" :value="confidenceScore">
                 <input type="hidden" name="is_ocr_corrected" :value="isOcrCorrected ? '1' : '0'">
                 <input type="file" name="foto_meter" id="foto_meter_hidden" class="hidden" accept="image/*">
-                <input type="file" id="fallback_camera_input" accept="image/*" capture="environment" class="hidden" @change="handleNativeCameraCapture($event)">
+                <input type="file" id="fallback_camera_input" accept="image/*" capture="environment" class="hidden" @change="handleImageFileSelected($event)">
+                <input type="file" id="gallery_upload_input" accept="image/jpeg,image/png,image/jpg,image/webp" class="hidden" @change="handleImageFileSelected($event)">
 
                 {{-- Viewfinder Kamera --}}
                 <div class="relative w-full h-[200px] bg-[#0B1120] overflow-hidden flex flex-col items-center justify-center border border-[#1E293B] rounded-2xl shadow-xs">
@@ -378,10 +379,11 @@
                                 </button>
                                 <button
                                     type="button"
-                                    @click="document.getElementById('fallback_camera_input').click()"
-                                    class="px-3.5 py-2.5 bg-[#1E293B] hover:bg-[#334155] text-white border border-[#475569] text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+                                    @click="document.getElementById('gallery_upload_input').click()"
+                                    class="px-3.5 py-2.5 bg-[#1E293B] hover:bg-[#334155] text-white border border-[#475569] text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-transform active:scale-95"
                                 >
-                                    <span>Pilih File</span>
+                                    <svg class="w-4 h-4 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <span>Upload Gambar</span>
                                 </button>
                             </div>
                         </template>
@@ -413,7 +415,10 @@
 
                         {{-- Indikator Scan --}}
                         <div x-show="isOcrProcessing" class="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-[#0B1120]/90 px-3 py-2 border border-[#2563EB] rounded-xl flex items-center justify-between text-xs text-white font-semibold">
-                            <span>Membaca angka meter (OCR)...</span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-[#38BDF8] animate-ping"></span>
+                                <span>Menganalisis meter air (<span x-text="ocrProvider"></span>)...</span>
+                            </span>
                             <svg class="w-4 h-4 animate-spin text-[#60A5FA]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         </div>
 
@@ -428,20 +433,22 @@
                             </button>
                         </div>
 
-                        {{-- Hasil Deteksi OCR Saran --}}
+                        {{-- Hasil Deteksi OCR / AI Saran --}}
                         <div x-show="ocrDone" class="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-[#0F172A]/95 px-3 py-2 border border-[#334155] rounded-xl flex items-center justify-between gap-2 text-white">
                             <div class="min-w-0">
-                                <p class="text-[10px] text-[#94A3B8]">Saran Angka OCR:</p>
-                                <p class="text-sm font-bold font-mono text-[#60A5FA]" x-text="ocrSuggestedDigits !== null ? (ocrSuggestedDigits + ' m³') : 'Tidak terbaca jelas'"></p>
+                                <p class="text-[10px] text-[#94A3B8] flex items-center gap-1">
+                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                    <span>Hasil Analisis AI:</span>
+                                    <span x-show="confidenceScore > 0" class="text-emerald-400 font-semibold" x-text="'(' + Math.round(confidenceScore) + '%)'"></span>
+                                </p>
+                                <p class="text-sm font-bold font-mono text-[#60A5FA]" x-text="ocrSuggestedDigits !== null ? (ocrSuggestedDigits + ' m³') : (ocrMessage || 'Tidak terbaca jelas, silakan ketik manual')"></p>
                             </div>
-                            <button
-                                x-show="ocrSuggestedDigits !== null"
-                                type="button"
-                                @click="useOcrDigits()"
-                                class="px-3 py-1 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-lg shrink-0 cursor-pointer"
-                            >
-                                Gunakan Angka Ini
-                            </button>
+                            <template x-if="ocrSuggestedDigits !== null">
+                                <span class="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-semibold rounded-lg flex items-center gap-1 shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    <span>Otomatis Terisi</span>
+                                </span>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -548,12 +555,14 @@
             photoPreview: null,
             photoFile: null,
 
-            // OCR
+            // OCR & AI Vision
             isOcrProcessing: false,
             ocrDone: false,
             ocrSuggestedDigits: null,
             confidenceScore: 95.0,
             isOcrCorrected: false,
+            ocrProvider: '{{ $activeAiProvider ?? 'Gemini AI' }}',
+            ocrMessage: '',
 
             // Meter Values
             angkaMeter: initialUnitData?.angka_sekarang ? initialUnitData.angka_sekarang.toString() : '',
@@ -788,15 +797,25 @@
                 const canvas = document.getElementById('camera_canvas');
                 if (!video || !canvas) return;
 
-                const width = video.videoWidth || 640;
-                const height = video.videoHeight || 480;
+                const maxDim = 960;
+                let width = video.videoWidth || 640;
+                let height = video.videoHeight || 480;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
                 canvas.width = width;
                 canvas.height = height;
 
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, width, height);
 
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
                 this.photoPreview = dataUrl;
 
                 canvas.toBlob((blob) => {
@@ -810,28 +829,76 @@
                         } catch (e) {}
                         this.runOcrProcess();
                     }
-                }, 'image/jpeg', 0.88);
+                }, 'image/jpeg', 0.72);
 
                 this.stopLiveCamera();
             },
 
-            handleNativeCameraCapture(e) {
-                const file = e.target.files[0];
+            handleImageFileSelected(e) {
+                const file = e.target.files && e.target.files[0];
                 if (!file) return;
-                this.photoFile = file;
+
+                // Tampilkan indikator proses cepat
+                this.isOcrProcessing = true;
+                this.ocrDone = false;
+                this.stopLiveCamera();
 
                 const reader = new FileReader();
                 reader.onload = (evt) => {
-                    this.photoPreview = evt.target.result;
-                    this.runOcrProcess();
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const maxDim = 960;
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxDim || h > maxDim) {
+                            if (w > h) {
+                                h = Math.round((h * maxDim) / w);
+                                w = maxDim;
+                            } else {
+                                w = Math.round((w * maxDim) / h);
+                                h = maxDim;
+                            }
+                        }
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+                        this.photoPreview = compressedDataUrl;
+
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                const optimizedFile = new File([blob], file.name ? file.name.replace(/\.[^/.]+$/, '.jpg') : 'meter_upload.jpg', { type: 'image/jpeg' });
+                                this.photoFile = optimizedFile;
+                                try {
+                                    const dt = new DataTransfer();
+                                    dt.items.add(optimizedFile);
+                                    document.getElementById('foto_meter_hidden').files = dt.files;
+                                } catch (err) {}
+                                this.runOcrProcess();
+                            }
+                        }, 'image/jpeg', 0.72);
+                    };
+                    img.onerror = () => {
+                        this.photoFile = file;
+                        this.photoPreview = evt.target.result;
+                        try {
+                            const dt = new DataTransfer();
+                            dt.items.add(file);
+                            document.getElementById('foto_meter_hidden').files = dt.files;
+                        } catch (err) {}
+                        this.runOcrProcess();
+                    };
+                    img.src = evt.target.result;
                 };
                 reader.readAsDataURL(file);
+                e.target.value = '';
+            },
 
-                try {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    document.getElementById('foto_meter_hidden').files = dt.files;
-                } catch (e) {}
+            handleNativeCameraCapture(e) {
+                this.handleImageFileSelected(e);
             },
 
             retakeCamera() {
@@ -865,6 +932,10 @@
                         });
 
                         const result = await response.json();
+                        this.ocrMessage = result.message || '';
+                        if (result.ai_provider) {
+                            this.ocrProvider = result.ai_provider;
+                        }
                         if (result.success && result.suggested_digits !== null) {
                             this.ocrSuggestedDigits = result.suggested_digits;
                             this.confidenceScore = result.confidence_score || 95.0;

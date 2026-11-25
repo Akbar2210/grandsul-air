@@ -43,31 +43,262 @@ class OcrMeterService
     }
 
     /**
+     * Memeriksa apakah terdapat API Key AI (Gemini atau Google Vision) yang aktif.
+     */
+    public function hasActiveAiKey(): bool
+    {
+        return (string) config('services.gemini.api_key', '') !== ''
+            || (string) config('services.google_vision.api_key', '') !== '';
+    }
+
+    /**
+     * Mendapatkan nama provider AI yang sedang aktif.
+     */
+    public function getActiveAiProvider(): string
+    {
+        if ((string) config('services.gemini.api_key', '') !== '') {
+            return 'Gemini AI Vision';
+        }
+        if ((string) config('services.google_vision.api_key', '') !== '') {
+            return 'Google Cloud Vision';
+        }
+
+        return 'Manual';
+    }
+
+    /**
+     * Mengompres citra foto meteran agar ukuran pengiriman ke AI sangat ringan (di bawah 100 KB)
+     * sehingga proses analisis AI berjalan instan (1-2 detik) tanpa resiko timeout.
+     */
+    public function optimizeImageForAi(string $binaryData): string
+    {
+        if (strlen($binaryData) < 250000) {
+            return $binaryData;
+        }
+
+        try {
+            if (! extension_loaded('gd')) {
+                return $binaryData;
+            }
+
+            $src = @imagecreatefromstring($binaryData);
+            if (! $src) {
+                return $binaryData;
+            }
+
+            $w = imagesx($src);
+            $h = imagesy($src);
+            $maxDim = 960;
+
+            if ($w > $maxDim || $h > $maxDim) {
+                if ($w > $h) {
+                    $newW = $maxDim;
+                    $newH = (int) round(($h * $maxDim) / $w);
+                } else {
+                    $newH = $maxDim;
+                    $newW = (int) round(($w * $maxDim) / $h);
+                }
+
+                $dst = imagecreatetruecolor($newW, $newH);
+                imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
+                imagedestroy($src);
+                $src = $dst;
+            }
+
+            ob_start();
+            imagejpeg($src, null, 75);
+            $compressed = ob_get_clean();
+            imagedestroy($src);
+
+            return $compressed ?: $binaryData;
+        } catch (\Throwable) {
+            return $binaryData;
+        }
+    }
+
+    /**
      * Mengekstrak angka meteran dan confidence score dari berkas gambar
-     * menggunakan Google Cloud Vision API (Text Detection) dengan fallback aman.
+     * menggunakan Gemini AI Vision API (Free Tier) dengan fallback ke Google Cloud Vision atau manual.
      *
-     * @return array{success: bool, suggested_digits: ?int, raw_text: string, confidence_score: float, message: string}
+     * @return array{success: bool, suggested_digits: ?int, raw_text: string, confidence_score: float, provider: string, message: string}
      */
     public function extractMeterFromImage(string $imageBinaryOrBase64, bool $isBase64 = false): array
     {
-        $apiKey = (string) config('services.google_vision.api_key', '');
-        $endpoint = (string) config('services.google_vision.endpoint', 'https://vision.googleapis.com/v1/images:annotate');
+        if (! $isBase64) {
+            $imageBinaryOrBase64 = $this->optimizeImageForAi($imageBinaryOrBase64);
+            $base64Image = base64_encode($imageBinaryOrBase64);
+        } else {
+            $base64Image = $imageBinaryOrBase64;
+        }
 
-        $base64Image = $isBase64 ? $imageBinaryOrBase64 : base64_encode($imageBinaryOrBase64);
+        // 1. Prioritaskan Google Gemini AI Vision (Model Multimodal Lebih Akurat untuk Meteran Air)
+        $geminiKey = (string) config('services.gemini.api_key', '');
+        if ($geminiKey !== '') {
+            $geminiResult = $this->extractViaGeminiVision($base64Image, $geminiKey);
+            if ($geminiResult['success']) {
+                return $geminiResult;
+            }
+        }
 
-        if ($apiKey === '') {
+        // 2. Fallback ke Google Cloud Vision OCR jika dikonfigurasi
+        $googleVisionKey = (string) config('services.google_vision.api_key', '');
+        if ($googleVisionKey !== '') {
+            $googleResult = $this->extractViaGoogleVision($base64Image, $googleVisionKey);
+            if ($googleResult['success']) {
+                return $googleResult;
+            }
+        }
+
+        // 3. Fallback jika tidak ada API key atau keduanya gagal
+        $message = $geminiKey !== ''
+            ? ($geminiResult['message'] ?? 'AI Gemini gagal membaca meteran. Silakan input manual.')
+            : 'API Key AI Gemini belum diatur di file .env (GEMINI_API_KEY). Silakan masukkan angka meteran secara manual.';
+
+        return [
+            'success' => false,
+            'suggested_digits' => null,
+            'raw_text' => '',
+            'confidence_score' => 0.0,
+            'provider' => $geminiKey !== '' ? 'gemini' : ($googleVisionKey !== '' ? 'google_vision' : 'none'),
+            'message' => $message,
+        ];
+    }
+
+    /**
+     * Mengekstrak angka meteran menggunakan Google Gemini AI Vision (Multimodal AI).
+     *
+     * @return array{success: bool, suggested_digits: ?int, raw_text: string, confidence_score: float, provider: string, message: string}
+     */
+    public function extractViaGeminiVision(string $base64Image, string $apiKey, ?string $fallbackModel = null): array
+    {
+        $primaryModel = (string) config('services.gemini.model', 'gemini-3.5-flash-lite');
+        $model = $fallbackModel ?: $primaryModel;
+        $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
+
+        $prompt = "Anda adalah asisten AI pembaca angka cerdas (Smart Numeric OCR) untuk sistem pencatatan meter air dan simulasi pengujian.\n".
+            "TUGAS UTAMA: Deteksi dan ekstrak ANGKA APAPUN yang terlihat jelas pada foto ini.\n\n".
+            "PANDUAN PEMBACAAN:\n".
+            "1. Jika pada foto terdapat METERAN AIR, baca deretan angka stand meterannya (biasanya digit roller hitam). Abaikan angka merah kecil/desimal.\n".
+            "2. Jika foto BUKAN meteran air (karena untuk SIMULASI/TESTING, misalnya: angka yang ditulis tangan/cetak di kertas, layar HP/laptop, struk, stiker, buku, nomor rumah, atau objek apapun), BACA ANGKA UTAMA/TERJELAS YANG TERTULIS DI FOTO TERSEBUT.\n".
+            "3. Ambil hanya bilangan bulat positif (contoh: 25, 450, 1011, 41323).\n".
+            "4. Kembalikan HANYA format JSON valid murni (tanpa format markdown ```json) dengan struktur:\n".
+            "{\"digits\": 1234, \"confidence\": 98, \"raw_text\": \"1234\", \"notes\": \"Angka berhasil dibaca\"}\n".
+            "5. Hanya jika benar-benar TIDAK ADA ANGKA SAMA SEKALI pada gambar, kembalikan:\n".
+            '{"digits": null, "confidence": 0, "raw_text": "", "notes": "Tidak ditemukan angka pada foto"}';
+
+        try {
+            $response = Http::connectTimeout(3)
+                ->timeout(7)
+                ->withOptions([
+                    'force_ip_resolve' => 'v4',
+                ])
+                ->post($endpoint, [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt],
+                                [
+                                    'inline_data' => [
+                                        'mime_type' => 'image/jpeg',
+                                        'data' => $base64Image,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                    'generationConfig' => [
+                        'temperature' => 0.1,
+                        'response_mime_type' => 'application/json',
+                    ],
+                ]);
+
+            if (! $response->successful()) {
+                $status = $response->status();
+
+                // Jika model primer sibuk (503) atau tidak ditemukan (404), coba model cadangan gemini-3.5-flash
+                if (($status === 503 || $status === 404) && $model !== 'gemini-3.5-flash') {
+                    return $this->extractViaGeminiVision($base64Image, $apiKey, 'gemini-3.5-flash');
+                }
+
+                $errBody = $response->json();
+                $errMsg = data_get($errBody, 'error.message', 'Gagal menghubungi Gemini API');
+
+                return [
+                    'success' => false,
+                    'suggested_digits' => null,
+                    'raw_text' => '',
+                    'confidence_score' => 0.0,
+                    'provider' => 'gemini',
+                    'message' => "Layanan AI Gemini (HTTP {$status}): {$errMsg}",
+                ];
+            }
+
+            $payload = $response->json();
+            $textResponse = (string) data_get($payload, 'candidates.0.content.parts.0.text', '');
+
+            // Bersihkan jika ada bungkus markdown ```json
+            $cleaned = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', trim($textResponse));
+            $data = json_decode($cleaned, true);
+
+            if (! is_array($data) || ! isset($data['digits']) || $data['digits'] === null) {
+                // Fallback ekstraksi regex jika model mengembalikan teks mentah dengan angka
+                $fallbackDigits = $this->filterMeterDigits($textResponse);
+                if ($fallbackDigits !== null) {
+                    return [
+                        'success' => true,
+                        'suggested_digits' => $fallbackDigits,
+                        'raw_text' => (string) $fallbackDigits,
+                        'confidence_score' => 92.0,
+                        'provider' => 'gemini',
+                        'message' => 'Angka berhasil dideteksi oleh AI Gemini.',
+                    ];
+                }
+
+                return [
+                    'success' => false,
+                    'suggested_digits' => null,
+                    'raw_text' => (string) ($data['raw_text'] ?? $textResponse),
+                    'confidence_score' => (float) ($data['confidence'] ?? 0.0),
+                    'provider' => 'gemini',
+                    'message' => (string) ($data['notes'] ?? 'Tidak ditemukan angka pada foto.'),
+                ];
+            }
+
+            $digits = (int) $data['digits'];
+            $confidence = isset($data['confidence']) ? (float) $data['confidence'] : 95.0;
+
+            return [
+                'success' => true,
+                'suggested_digits' => $digits,
+                'raw_text' => (string) ($data['raw_text'] ?? (string) $digits),
+                'confidence_score' => round($confidence, 2),
+                'provider' => 'gemini',
+                'message' => 'Angka meteran berhasil dianalisis oleh AI Gemini.',
+            ];
+        } catch (\Throwable $e) {
             return [
                 'success' => false,
                 'suggested_digits' => null,
                 'raw_text' => '',
                 'confidence_score' => 0.0,
-                'message' => 'OCR gagal atau kuota/API Key Google Cloud Vision belum dikonfigurasi. Silakan input manual.',
+                'provider' => 'gemini',
+                'message' => 'Kendala koneksi ke AI Gemini: '.$e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Mengekstrak angka meteran menggunakan Google Cloud Vision (OCR Tradisional).
+     *
+     * @return array{success: bool, suggested_digits: ?int, raw_text: string, confidence_score: float, provider: string, message: string}
+     */
+    public function extractViaGoogleVision(string $base64Image, string $apiKey): array
+    {
+        $endpoint = (string) config('services.google_vision.endpoint', 'https://vision.googleapis.com/v1/images:annotate');
 
         try {
-            $response = Http::connectTimeout(3)
-                ->timeout(10)
+            $response = Http::connectTimeout(4)
+                ->timeout(12)
                 ->post($endpoint.'?key='.$apiKey, [
                     'requests' => [
                         [
@@ -85,6 +316,7 @@ class OcrMeterService
                     'suggested_digits' => null,
                     'raw_text' => '',
                     'confidence_score' => 0.0,
+                    'provider' => 'google_vision',
                     'message' => 'Layanan Google Cloud Vision tidak dapat dijangkau. Silakan input manual.',
                 ];
             }
@@ -101,6 +333,7 @@ class OcrMeterService
                     'suggested_digits' => null,
                     'raw_text' => $rawText,
                     'confidence_score' => round($confidence, 2),
+                    'provider' => 'google_vision',
                     'message' => 'OCR gagal membaca deretan angka pada foto meteran. Silakan ketik manual.',
                 ];
             }
@@ -110,7 +343,8 @@ class OcrMeterService
                 'suggested_digits' => $digits,
                 'raw_text' => trim($rawText),
                 'confidence_score' => round($confidence, 2),
-                'message' => 'Angka meteran berhasil diekstraksi oleh OCR.',
+                'provider' => 'google_vision',
+                'message' => 'Angka meteran berhasil diekstraksi oleh Google Cloud Vision OCR.',
             ];
         } catch (\Throwable) {
             return [
@@ -118,6 +352,7 @@ class OcrMeterService
                 'suggested_digits' => null,
                 'raw_text' => '',
                 'confidence_score' => 0.0,
+                'provider' => 'google_vision',
                 'message' => 'Terjadi kendala jaringan saat menghubungi Google Cloud Vision. Silakan input manual.',
             ];
         }
@@ -128,7 +363,7 @@ class OcrMeterService
      */
     public function filterMeterDigits(string $rawText): ?int
     {
-        if (preg_match('/\b(\d{3,7})\b/', $rawText, $matches) === 1) {
+        if (preg_match('/\b(\d{1,7})\b/', $rawText, $matches) === 1) {
             return (int) $matches[1];
         }
 

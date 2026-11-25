@@ -311,7 +311,7 @@ class DashboardController extends Controller
         }
 
         // 6. Map seluruh unit dalam blok untuk interaktivitas Alpine.js di Blade
-        $unitsMapped = $units->map(function ($u) use ($currentMonth, $currentYear) {
+        $unitsMapped = $units->map(function ($u) {
             $bacaan = $u->bacaanMeters->first();
             $status = 'belum_dicatat';
             $alasanDitolak = null;
@@ -374,6 +374,9 @@ class DashboardController extends Controller
             ];
         }
 
+        $hasActiveAiKey = $ocrMeterService->hasActiveAiKey();
+        $activeAiProvider = $ocrMeterService->getActiveAiProvider();
+
         return view('petugas.pindai', compact(
             'user',
             'periodeStr',
@@ -392,24 +395,28 @@ class DashboardController extends Controller
             'searchKeyword',
             'currentMonth',
             'currentYear',
-            'geofenceConfig'
+            'geofenceConfig',
+            'hasActiveAiKey',
+            'activeAiProvider'
         ));
     }
 
     /**
-     * Endpoint AJAX untuk memindai foto meteran menggunakan Google Cloud Vision API.
+     * Endpoint AJAX untuk memindai foto meteran menggunakan Gemini AI Vision / Google Cloud Vision API.
      * Validasi GPS dilakukan langsung terhadap koordinat unit yang dipilih.
      */
     public function ocrScan(Request $request, OcrMeterService $ocrMeterService)
     {
         $request->validate([
             'unit_id' => 'required|exists:unit_hunians,id',
-            'foto_meter' => 'required|image|max:5120',
+            'foto_meter' => 'required|image|mimes:jpeg,png,jpg,webp|max:15360',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
 
         $unit = UnitHunian::findOrFail($request->unit_id);
+        $hasApiKey = $ocrMeterService->hasActiveAiKey();
+        $activeProvider = $ocrMeterService->getActiveAiProvider();
 
         $gpsCheck = $ocrMeterService->validateGpsLocation(
             $request->filled('latitude') ? (float) $request->latitude : null,
@@ -428,17 +435,18 @@ class DashboardController extends Controller
                 'is_gps_valid' => false,
                 'gps_unverified' => false,
                 'distance_meters' => $gpsCheck['distance_meters'] ?? 0.0,
-                'has_api_key' => (string) config('services.google_vision.api_key', '') !== '',
+                'has_api_key' => $hasApiKey,
+                'ai_provider' => $activeProvider,
                 'message' => $gpsCheck['message'],
             ], 422);
         }
 
         $file = $request->file('foto_meter');
         $imageBinary = file_get_contents($file->getRealPath());
-        $hasApiKey = (string) config('services.google_vision.api_key', '') !== '';
 
         $ocrResult = $ocrMeterService->extractMeterFromImage($imageBinary !== false ? $imageBinary : '');
         $ocrResult['has_api_key'] = $hasApiKey;
+        $ocrResult['ai_provider'] = $activeProvider;
         $ocrResult['is_gps_valid'] = true;
         $ocrResult['gps_unverified'] = $gpsCheck['gps_unverified'] ?? false;
         $ocrResult['distance_meters'] = $gpsCheck['distance_meters'] ?? 0.0;
@@ -452,7 +460,7 @@ class DashboardController extends Controller
         $request->validate([
             'unit_id' => 'required|exists:unit_hunians,id',
             'angka_meter' => 'required|numeric|min:0',
-            'foto_meter' => 'nullable|image|max:5120',
+            'foto_meter' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:15360',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
             'catatan' => 'nullable|string|max:500',

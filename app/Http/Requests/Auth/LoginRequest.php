@@ -83,6 +83,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = Auth::user();
+        if ($user && isset($user->is_active) && ! $user->is_active) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Akun petugas ini telah dinonaktifkan oleh Administrator. Silakan hubungi admin pengelola.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

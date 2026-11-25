@@ -11,8 +11,12 @@
     editUnitModal: false,
     editTarifModal: false,
     importModal: false,
+    addPetugasModal: false,
+    editPetugasModal: false,
+    addBlokModal: false,
     unitData: { id: '', nomor_rumah: '', blok_id: '', nama_pemilik: '', nomor_wa: '', status_huni: 'Dihuni' },
     tarifData: { id: '', blok_konsumsi: '', batas_bawah: 0, batas_atas: '', tarif_per_m3: 0 },
+    petugasData: { id: '', name: '', email: '', password: '', zona_type: 'semua', zona_blok: [], is_active: true },
     openEditUnit(u) {
         this.unitData = {
             id: u.id,
@@ -33,6 +37,35 @@
             tarif_per_m3: Math.round(t.tarif_per_m3)
         };
         this.editTarifModal = true;
+    },
+    openAddPetugas() {
+        this.petugasData = { id: '', name: '', email: '', password: '', zona_type: 'semua', zona_blok: [], is_active: true };
+        this.addPetugasModal = true;
+    },
+    openEditPetugas(p) {
+        let isSemua = !p.zona_penugasan || p.zona_penugasan.toLowerCase().includes('semua');
+        let selectedBloks = [];
+        if (!isSemua && p.zona_penugasan) {
+            selectedBloks = p.zona_penugasan.split(',').map(s => s.trim());
+        }
+        this.petugasData = {
+            id: p.id,
+            name: p.name,
+            email: p.email,
+            password: '',
+            zona_type: isSemua ? 'semua' : 'spesifik',
+            zona_blok: selectedBloks,
+            is_active: Boolean(p.is_active ?? true)
+        };
+        this.editPetugasModal = true;
+    },
+    toggleBlokSelection(blokName) {
+        const idx = this.petugasData.zona_blok.indexOf(blokName);
+        if (idx > -1) {
+            this.petugasData.zona_blok.splice(idx, 1);
+        } else {
+            this.petugasData.zona_blok.push(blokName);
+        }
     }
 }">
 
@@ -307,84 +340,189 @@
 
     {{-- ==================== KONTEN TAB 3: PETUGAS LAPANGAN ==================== --}}
     @if($activeTab === 'petugas')
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        @forelse($petugasList as $p)
-        <div class="bg-white rounded-xl border border-[#CBD5E1] p-6 shadow-sm flex items-start gap-4">
-            <div class="w-12 h-12 rounded-2xl bg-[#0F172A] text-white font-mono font-bold flex items-center justify-center text-lg shrink-0">
-                {{ strtoupper(substr($p->name, 0, 2)) }}
+    <div class="space-y-4">
+        {{-- Header Bar Tab Petugas Lapangan --}}
+        <div class="bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-sm font-bold text-[#0F172A]">Daftar Petugas Lapangan</h3>
+                <p class="text-xs text-[#64748B] mt-0.5">Kelola akun kredensial, username, kata sandi, dan zona penugasan blok petugas</p>
             </div>
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
-                    <h4 class="text-sm font-bold text-[#0F172A] truncate">{{ $p->name }}</h4>
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-semibold text-[11px]">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
-                        <span>Aktif Siaga</span>
-                    </span>
-                </div>
-                <p class="text-xs text-[#64748B] mt-0.5 font-mono">{{ $p->email }}</p>
+            <button type="button" @click="openAddPetugas()" class="px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 shrink-0 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                <span>Tambah Petugas</span>
+            </button>
+        </div>
 
-                <div class="mt-4 pt-3 border-t border-[#F1F5F9] grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                        <span class="text-[#64748B] block text-[11px]">Role Sistem:</span>
-                        <span class="font-bold text-[#0F172A]">Petugas Lapangan</span>
+        {{-- Grid Card Petugas --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            @forelse($petugasList as $p)
+            <div class="bg-white rounded-xl border border-[#CBD5E1] p-6 shadow-sm flex flex-col justify-between gap-4">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-[#0F172A] text-white font-mono font-bold flex items-center justify-center text-lg shrink-0 shadow-xs">
+                        {{ strtoupper(substr($p->name, 0, 2)) }}
                     </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between gap-2">
+                            <h4 class="text-sm font-bold text-[#0F172A] truncate">{{ $p->name }}</h4>
+                            @if($p->is_active ?? true)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F0FDF4] border border-[#BBF7D0] text-[#166534] font-semibold text-[11px] shrink-0">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
+                                <span>Aktif Siaga</span>
+                            </span>
+                            @else
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] font-semibold text-[11px] shrink-0">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#DC2626]"></span>
+                                <span>Nonaktif / Berhenti</span>
+                            </span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-[#64748B] mt-0.5 font-mono truncate">{{ $p->email }}</p>
+
+                        <div class="mt-4 pt-3 border-t border-[#F1F5F9] grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <span class="text-[#64748B] block text-[11px]">Role Sistem:</span>
+                                <span class="font-bold text-[#0F172A]">Petugas Lapangan</span>
+                            </div>
+                            <div>
+                                <span class="text-[#64748B] block text-[11px]">Zona Penugasan:</span>
+                                <span class="font-bold text-[#2563EB] leading-tight block">
+                                    {{ $p->zona_penugasan ?: 'Semua Blok (A, B, C, D, E, F)' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Action Footer --}}
+                <div class="pt-3 border-t border-[#F1F5F9] flex items-center justify-between">
                     <div>
-                        <span class="text-[#64748B] block text-[11px]">Zona Penugasan:</span>
-                        <span class="font-bold text-[#2563EB]">Semua Blok (A, B, C, D, E, F)</span>
+                        @if($p->id !== auth()->id())
+                        <form action="{{ route('admin.master.petugas.toggle-status', $p->id) }}" method="POST"
+                              onsubmit="return confirm('Apakah Anda yakin ingin {{ ($p->is_active ?? true) ? 'menonaktifkan' : 'mengaktifkan kembali' }} akun petugas {{ $p->name }}?');" class="inline">
+                            @csrf
+                            @if($p->is_active ?? true)
+                            <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] hover:bg-[#FEE2E2] text-xs font-bold text-[#DC2626] transition-colors cursor-pointer shadow-2xs" title="Nonaktifkan jika petugas sudah berhenti bertugas">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                <span>Nonaktifkan Petugas</span>
+                            </button>
+                            @else
+                            <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] hover:bg-[#DCFCE7] text-xs font-bold text-[#166534] transition-colors cursor-pointer shadow-2xs" title="Aktifkan kembali akun petugas ini">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Aktifkan Kembali</span>
+                            </button>
+                            @endif
+                        </form>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="openEditPetugas({{ Js::from($p) }})"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#EFF6FF] hover:bg-[#DBEAFE] text-xs font-bold text-[#2563EB] transition-colors cursor-pointer shadow-2xs">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                            <span>Kelola Akun & Zona</span>
+                        </button>
+                        @if($petugasList->count() > 1 && $p->id !== auth()->id())
+                        <form action="{{ route('admin.master.petugas.destroy', $p->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus petugas {{ $p->name }}?');" class="inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="inline-flex items-center justify-center p-1.5 rounded-lg text-[#DC2626] hover:bg-[#FEF2F2] hover:text-[#B91C1C] transition-colors cursor-pointer" title="Hapus Petugas">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                            </button>
+                        </form>
+                        @endif
                     </div>
                 </div>
             </div>
+            @empty
+            <div class="col-span-2 bg-white rounded-xl border border-[#CBD5E1] p-8 text-center text-[#64748B]">
+                Tidak ada data petugas lapangan yang terdaftar.
+            </div>
+            @endforelse
         </div>
-        @empty
-        <div class="col-span-2 bg-white rounded-xl border border-[#CBD5E1] p-8 text-center text-[#64748B]">
-            Tidak ada data petugas lapangan yang terdaftar.
-        </div>
-        @endforelse
     </div>
     @endif
 
     {{-- ==================== KONTEN TAB 4: BLOK HUNIAN ==================== --}}
     @if($activeTab === 'blok')
-    <div class="bg-white rounded-xl border border-[#CBD5E1] shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-                <thead>
-                    <tr class="bg-[#F8FAFC] border-b border-[#CBD5E1] text-[#0F172A] font-bold uppercase tracking-wider text-[11px]">
-                        <th class="py-3.5 px-6">Nama Blok</th>
-                        <th class="py-3.5 px-4 text-center">Jumlah Unit</th>
-                        <th class="py-3.5 px-4">Penanggung Jawab</th>
-                        <th class="py-3.5 px-4 text-center">Tercatat Bulan Ini</th>
-                        <th class="py-3.5 px-6 text-right">Volume Bulan Ini</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-[#F1F5F9]">
-                    @foreach($bloks as $b)
-                    @php
-                        $bStat = $blokMasterStats[$b->id] ?? ['tercatat' => 0, 'volume' => 0];
-                    @endphp
-                    <tr class="hover:bg-[#F8FAFC] transition-colors">
-                        <td class="py-4 px-6 font-bold text-sm text-[#0F172A]">
-                            {{ $b->nama_blok }}
-                        </td>
-                        <td class="py-4 px-4 text-center font-mono font-bold text-[#0F172A] tabular-nums">
-                            {{ $b->unit_hunians_count }} Unit
-                        </td>
-                        <td class="py-4 px-4 font-semibold text-[#0F172A]">
-                            {{ str_contains(strtolower($petugasUtama), 'petugas') ? $petugasUtama : $petugasUtama . ' (Petugas Lapangan)' }}
-                        </td>
-                        <td class="py-4 px-4 text-center">
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-mono font-semibold text-[11px] tabular-nums">
-                                <span class="w-1.5 h-1.5 rounded-full {{ $bStat['tercatat'] >= $b->unit_hunians_count && $b->unit_hunians_count > 0 ? 'bg-[#16A34A]' : 'bg-[#2563EB]' }}"></span>
-                                <span>{{ $bStat['tercatat'] }} / {{ $b->unit_hunians_count }} Unit</span>
-                            </span>
-                        </td>
-                        <td class="py-4 px-6 text-right font-mono font-bold text-[#2563EB] tabular-nums">
-                            {{ number_format($bStat['volume'], 0, ',', '.') }} m³
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
+    <div class="space-y-4">
+        {{-- Header Bar Tab Blok Hunian --}}
+        <div class="bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-sm font-bold text-[#0F172A]">Daftar Blok Hunian</h3>
+                <p class="text-xs text-[#64748B] mt-0.5">Kelola zonasi kawasan hunian dan pemantauan distribusi pencatatan meter</p>
+            </div>
+            <button type="button" @click="addBlokModal = true" class="px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 shrink-0 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                <span>Tambah Blok</span>
+            </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-[#CBD5E1] shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="bg-[#F8FAFC] border-b border-[#CBD5E1] text-[#0F172A] font-bold uppercase tracking-wider text-[11px]">
+                            <th class="py-3.5 px-6">Nama Blok</th>
+                            <th class="py-3.5 px-4 text-center">Jumlah Unit</th>
+                            <th class="py-3.5 px-4">Penanggung Jawab</th>
+                            <th class="py-3.5 px-4 text-center">Tercatat Bulan Ini</th>
+                            <th class="py-3.5 px-6 text-right">Volume Bulan Ini</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#F1F5F9]">
+                        @foreach($bloks as $b)
+                        @php
+                            $bStat = $blokMasterStats[$b->id] ?? ['tercatat' => 0, 'volume' => 0];
+                            $assignedPetugas = $petugasList->filter(function($p) use ($b) {
+                                if (!($p->is_active ?? true)) {
+                                    return false;
+                                }
+                                $zona = strtolower($p->zona_penugasan ?? '');
+                                if (empty($zona) || str_contains($zona, 'semua')) {
+                                    return true;
+                                }
+                                return str_contains(strtolower($p->zona_penugasan), strtolower($b->nama_blok));
+                            });
+                        @endphp
+                        <tr class="hover:bg-[#F8FAFC] transition-colors">
+                            <td class="py-4 px-6 font-bold text-sm text-[#0F172A]">
+                                {{ $b->nama_blok }}
+                                @if($b->keterangan_wilayah)
+                                <span class="block text-[11px] font-normal text-[#64748B] mt-0.5">{{ $b->keterangan_wilayah }}</span>
+                                @endif
+                            </td>
+                            <td class="py-4 px-4 text-center font-mono font-bold text-[#0F172A] tabular-nums">
+                                {{ $b->unit_hunians_count }} Unit
+                            </td>
+                            <td class="py-4 px-4">
+                                @if($assignedPetugas->isNotEmpty())
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    @foreach($assignedPetugas as $ap)
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-[#1E40AF] text-xs font-bold shadow-2xs">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#2563EB]"></span>
+                                        <span>{{ $ap->name }}</span>
+                                    </span>
+                                    @endforeach
+                                </div>
+                                @else
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1] text-[#94A3B8] text-xs font-semibold italic">
+                                    Belum Ada Petugas
+                                </span>
+                                @endif
+                            </td>
+                            <td class="py-4 px-4 text-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] font-mono font-semibold text-[11px] tabular-nums">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $bStat['tercatat'] >= $b->unit_hunians_count && $b->unit_hunians_count > 0 ? 'bg-[#16A34A]' : 'bg-[#2563EB]' }}"></span>
+                                    <span>{{ $bStat['tercatat'] }} / {{ $b->unit_hunians_count }} Unit</span>
+                                </span>
+                            </td>
+                            <td class="py-4 px-6 text-right font-mono font-bold text-[#2563EB] tabular-nums">
+                                {{ number_format($bStat['volume'], 0, ',', '.') }} m³
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     @endif
@@ -720,6 +858,262 @@
             <form :id="'delete-tarif-form-' + tarifData.id" :action="'{{ url('admin/master/tarif') }}/' + tarifData.id" method="POST" class="hidden">
                 @csrf
                 @method('DELETE')
+            </form>
+        </div>
+    </div>
+
+    {{-- ==================== MODAL TAMBAH PETUGAS LAPANGAN ==================== --}}
+    <div x-show="addPetugasModal"
+         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="addPetugasModal = false">
+            <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
+                <div>
+                    <h3 class="text-base font-bold text-[#0F172A]">Tambah Petugas Lapangan Baru</h3>
+                    <p class="text-xs text-[#64748B]">Buat akun login dan tentukan zona penugasan blok</p>
+                </div>
+                <button type="button" @click="addPetugasModal = false" class="text-[#94A3B8] hover:text-[#0F172A] p-1 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form action="{{ route('admin.master.petugas.store') }}" method="POST" class="mt-5 space-y-4 text-xs">
+                @csrf
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Nama Lengkap Petugas <span class="text-[#E11D48]">*</span></label>
+                    <input type="text" name="name" x-model="petugasData.name" placeholder="Contoh: Budi Santoso" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Username / Email Login <span class="text-[#E11D48]">*</span></label>
+                    <input type="text" name="email" x-model="petugasData.email" placeholder="Contoh: petugas2 atau budi@grandsul.web.id" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-mono font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    <span class="text-[11px] text-[#64748B] mt-1 block">Bisa diisi username (misal: <code>petugas2</code>) atau alamat email lengkap.</span>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Kata Sandi (Password) <span class="text-[#E11D48]">*</span></label>
+                    <input type="password" name="password" x-model="petugasData.password" placeholder="Minimal 6 karakter" required minlength="6"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-mono text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1.5">Zona Penugasan Blok</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-[#CBD5E1] cursor-pointer hover:bg-[#F8FAFC] transition-colors"
+                               :class="petugasData.zona_type === 'semua' ? 'bg-[#EFF6FF] border-[#93C5FD]' : ''">
+                            <input type="radio" name="zona_type" value="semua" x-model="petugasData.zona_type" class="text-[#2563EB] focus:ring-[#2563EB]">
+                            <div>
+                                <span class="font-bold text-[#0F172A] block text-xs">Semua Blok (A, B, C, D, E, F)</span>
+                                <span class="text-[11px] text-[#64748B]">Petugas dapat mencatat meter di seluruh area perumahan</span>
+                            </div>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-[#CBD5E1] cursor-pointer hover:bg-[#F8FAFC] transition-colors"
+                               :class="petugasData.zona_type === 'spesifik' ? 'bg-[#EFF6FF] border-[#93C5FD]' : ''">
+                            <input type="radio" name="zona_type" value="spesifik" x-model="petugasData.zona_type" class="text-[#2563EB] focus:ring-[#2563EB]">
+                            <div>
+                                <span class="font-bold text-[#0F172A] block text-xs">Blok Tertentu (Penugasan Khusus)</span>
+                                <span class="text-[11px] text-[#64748B]">Pilih blok spesifik yang menjadi tanggung jawab petugas</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    {{-- Pilihan Blok Spesifik --}}
+                    <div x-show="petugasData.zona_type === 'spesifik'" class="mt-3 p-3.5 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] space-y-2" style="display: none;">
+                        <span class="text-[11px] font-bold text-[#475569] uppercase tracking-wider block">Pilih Blok Penugasan:</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            @foreach($bloks as $b)
+                            <button type="button" @click="toggleBlokSelection('{{ $b->nama_blok }}')"
+                                    class="px-3 py-2 rounded-lg border text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer"
+                                    :class="petugasData.zona_blok.includes('{{ $b->nama_blok }}') ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-xs' : 'bg-white text-[#0F172A] border-[#CBD5E1] hover:border-[#94A3B8]'">
+                                <span>{{ $b->nama_blok }}</span>
+                                <span x-show="petugasData.zona_blok.includes('{{ $b->nama_blok }}')" class="text-xs">✓</span>
+                            </button>
+                            <input type="checkbox" name="zona_blok[]" value="{{ $b->nama_blok }}" :checked="petugasData.zona_blok.includes('{{ $b->nama_blok }}')" class="hidden">
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex items-center justify-end gap-3 border-t border-[#F1F5F9]">
+                    <button type="button" @click="addPetugasModal = false" class="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] font-bold text-xs cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs cursor-pointer">
+                        Daftarkan Petugas
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ==================== MODAL KELOLA / EDIT PETUGAS ==================== --}}
+    <div x-show="editPetugasModal"
+         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="editPetugasModal = false">
+            <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
+                <div>
+                    <h3 class="text-base font-bold text-[#0F172A]">Kelola Akun & Penugasan Petugas</h3>
+                    <p class="text-xs text-[#64748B]">Perbarui nama, username, kata sandi, dan blok tugas</p>
+                </div>
+                <button type="button" @click="editPetugasModal = false" class="text-[#94A3B8] hover:text-[#0F172A] p-1 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form :action="'{{ url('admin/master/petugas') }}/' + petugasData.id" method="POST" class="mt-5 space-y-4 text-xs">
+                @csrf
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Nama Lengkap Petugas <span class="text-[#E11D48]">*</span></label>
+                    <input type="text" name="name" x-model="petugasData.name" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Username / Email Login <span class="text-[#E11D48]">*</span></label>
+                    <input type="text" name="email" x-model="petugasData.email" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-mono font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    <span class="text-[11px] text-[#64748B] mt-1 block">Bisa berupa username singkat atau email lengkap.</span>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Status Keaktifan Petugas</label>
+                    <select name="is_active" x-model="petugasData.is_active" class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                        <option :value="true">Aktif Siaga (Bisa Login & Bertugas)</option>
+                        <option :value="false">Non-Aktif / Berhenti (Akses Diblokir)</option>
+                    </select>
+                    <span class="text-[11px] text-[#64748B] mt-1 block">Jika dinonaktifkan, akun tidak dapat digunakan untuk login ke portal petugas.</span>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Kata Sandi Baru (Opsional)</label>
+                    <input type="password" name="password" x-model="petugasData.password" placeholder="Kosongkan jika tidak ingin mengubah password" minlength="6"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-mono text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    <span class="text-[11px] text-[#64748B] mt-1 block">Isi hanya jika ingin mengganti kata sandi akun petugas ini.</span>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1.5">Zona Penugasan Blok</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-[#CBD5E1] cursor-pointer hover:bg-[#F8FAFC] transition-colors"
+                               :class="petugasData.zona_type === 'semua' ? 'bg-[#EFF6FF] border-[#93C5FD]' : ''">
+                            <input type="radio" name="zona_type" value="semua" x-model="petugasData.zona_type" class="text-[#2563EB] focus:ring-[#2563EB]">
+                            <div>
+                                <span class="font-bold text-[#0F172A] block text-xs">Semua Blok (A, B, C, D, E, F)</span>
+                                <span class="text-[11px] text-[#64748B]">Petugas dapat mencatat meter di seluruh area perumahan</span>
+                            </div>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-[#CBD5E1] cursor-pointer hover:bg-[#F8FAFC] transition-colors"
+                               :class="petugasData.zona_type === 'spesifik' ? 'bg-[#EFF6FF] border-[#93C5FD]' : ''">
+                            <input type="radio" name="zona_type" value="spesifik" x-model="petugasData.zona_type" class="text-[#2563EB] focus:ring-[#2563EB]">
+                            <div>
+                                <span class="font-bold text-[#0F172A] block text-xs">Blok Tertentu (Penugasan Khusus)</span>
+                                <span class="text-[11px] text-[#64748B]">Pilih blok spesifik yang menjadi tanggung jawab petugas</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    {{-- Pilihan Blok Spesifik --}}
+                    <div x-show="petugasData.zona_type === 'spesifik'" class="mt-3 p-3.5 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] space-y-2" style="display: none;">
+                        <span class="text-[11px] font-bold text-[#475569] uppercase tracking-wider block">Pilih Blok Penugasan:</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            @foreach($bloks as $b)
+                            <button type="button" @click="toggleBlokSelection('{{ $b->nama_blok }}')"
+                                    class="px-3 py-2 rounded-lg border text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer"
+                                    :class="petugasData.zona_blok.includes('{{ $b->nama_blok }}') ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-xs' : 'bg-white text-[#0F172A] border-[#CBD5E1] hover:border-[#94A3B8]'">
+                                <span>{{ $b->nama_blok }}</span>
+                                <span x-show="petugasData.zona_blok.includes('{{ $b->nama_blok }}')" class="text-xs">✓</span>
+                            </button>
+                            <input type="checkbox" name="zona_blok[]" value="{{ $b->nama_blok }}" :checked="petugasData.zona_blok.includes('{{ $b->nama_blok }}')" class="hidden">
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex items-center justify-between gap-3 border-t border-[#F1F5F9]">
+                    <button type="button"
+                            @click="if(confirm('Apakah Anda yakin ingin menghapus petugas ini?')) { document.getElementById('delete-petugas-form-' + petugasData.id).submit(); }"
+                            class="px-4 py-2.5 rounded-xl bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5] font-bold text-xs transition-colors cursor-pointer">
+                        Hapus Petugas
+                    </button>
+                    <div class="flex items-center gap-2.5">
+                        <button type="button" @click="editPetugasModal = false" class="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] font-bold text-xs cursor-pointer">
+                            Batal
+                        </button>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs cursor-pointer">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </div>
+            </form>
+            {{-- Hidden delete form helper --}}
+            <form :id="'delete-petugas-form-' + petugasData.id" :action="'{{ url('admin/master/petugas') }}/' + petugasData.id" method="POST" class="hidden">
+                @csrf
+                @method('DELETE')
+            </form>
+        </div>
+    </div>
+
+    {{-- ==================== MODAL TAMBAH BLOK HUNIAN ==================== --}}
+    <div x-show="addBlokModal"
+         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="addBlokModal = false">
+            <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
+                <div>
+                    <h3 class="text-base font-bold text-[#0F172A]">Tambah Blok Hunian Baru</h3>
+                    <p class="text-xs text-[#64748B]">Registrasi klaster/blok baru dalam kawasan perumahan</p>
+                </div>
+                <button type="button" @click="addBlokModal = false" class="text-[#94A3B8] hover:text-[#0F172A] p-1 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form action="{{ route('admin.master.blok.store') }}" method="POST" class="mt-5 space-y-4 text-xs">
+                @csrf
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Nama Blok Hunian <span class="text-[#E11D48]">*</span></label>
+                    <input type="text" name="nama_blok" placeholder="Contoh: Blok G, Blok Anggrek" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    <span class="text-[11px] text-[#64748B] mt-1 block">Contoh format: <code>Blok G</code>. Pastikan nama blok belum pernah ada.</span>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-[#0F172A] mb-1">Keterangan / Deskripsi Wilayah (Opsional)</label>
+                    <input type="text" name="keterangan_wilayah" placeholder="Contoh: Sektor Timur tahap perluasan baru"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                </div>
+
+                <div class="pt-4 flex items-center justify-end gap-3 border-t border-[#F1F5F9]">
+                    <button type="button" @click="addBlokModal = false" class="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] font-bold text-xs cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs cursor-pointer">
+                        Simpan Blok Baru
+                    </button>
+                </div>
             </form>
         </div>
     </div>

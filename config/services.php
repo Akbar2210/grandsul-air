@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
+    ],
+
     'google_vision' => [
         'api_key' => env('GOOGLE_CLOUD_VISION_API_KEY'),
         'endpoint' => env('GOOGLE_CLOUD_VISION_ENDPOINT', 'https://vision.googleapis.com/v1/images:annotate'),
