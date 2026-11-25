@@ -8,8 +8,8 @@
 <div class="space-y-5">
 
     {{-- ==================== BANNER KEAMANAN & FILTER TOOLBAR ==================== --}}
-    <div class="bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-sm">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div class="bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-sm space-y-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
             <div>
                 <div class="flex items-center gap-2">
                     <span class="text-sm font-bold text-[#0F172A]">Audit Trail Terproteksi</span>
@@ -20,24 +20,68 @@
                 </div>
                 <p class="text-xs text-[#64748B] mt-0.5">Seluruh modifikasi data, kalkulasi tagihan, dan pembayaran dicatat otomatis dengan stempel waktu terverifikasi</p>
             </div>
-
-            <form method="GET" action="{{ route('admin.audit') }}" class="flex flex-wrap items-center gap-2.5">
-                <div class="relative min-w-[240px]">
-                    <svg class="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
-                    <input type="text" name="aktivitas" value="{{ request('aktivitas') }}" placeholder="Cari aktivitas atau unit..."
-                           class="w-full pl-10 pr-3.5 py-2 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
-                </div>
-
-                <button type="submit" class="px-4 py-2 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-xs transition-colors cursor-pointer">
-                    Cari Log
-                </button>
-                @if(request('aktivitas'))
-                <a href="{{ route('admin.audit') }}" class="px-3 py-2 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] text-xs font-semibold">
-                    Reset
-                </a>
-                @endif
-            </form>
         </div>
+
+        @if(! empty($dateError))
+            <div role="alert" class="px-4 py-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-xs font-semibold text-[#B91C1C] flex items-center gap-2.5">
+                <svg class="w-4 h-4 shrink-0 text-[#DC2626]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+                </svg>
+                <span>{{ $dateError }}</span>
+            </div>
+        @endif
+
+        <form method="GET" action="{{ route('admin.audit') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+            <div class="lg:col-span-2">
+                <label for="tanggal_awal" class="block text-[11px] font-bold text-[#334155] mb-1">Tanggal Awal</label>
+                <input id="tanggal_awal" type="date" name="tanggal_awal" value="{{ $tanggalAwal ?? '' }}"
+                       class="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+            </div>
+
+            <div class="lg:col-span-2">
+                <label for="tanggal_akhir" class="block text-[11px] font-bold text-[#334155] mb-1">Tanggal Akhir</label>
+                <input id="tanggal_akhir" type="date" name="tanggal_akhir" value="{{ $tanggalAkhir ?? '' }}"
+                       class="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+            </div>
+
+            <div class="lg:col-span-3">
+                <label for="user_id" class="block text-[11px] font-bold text-[#334155] mb-1">User</label>
+                <select id="user_id" name="user_id"
+                        class="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    <option value="">Semua User</option>
+                    @foreach($users ?? [] as $u)
+                        @php $uRole = $u->hasRole('petugas') ? 'Petugas' : 'Admin'; @endphp
+                        <option value="{{ $u->id }}" {{ (string) ($selectedUserId ?? '') === (string) $u->id ? 'selected' : '' }}>
+                            {{ $u->name }} ({{ $uRole }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="lg:col-span-3">
+                <label for="jenis_aktivitas" class="block text-[11px] font-bold text-[#334155] mb-1">Aktivitas</label>
+                <select id="jenis_aktivitas" name="jenis_aktivitas"
+                        class="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    <option value="">Semua Aktivitas</option>
+                    @foreach($activityOptions ?? [] as $opt)
+                        <option value="{{ $opt }}" {{ ($selectedJenisAktivitas ?? '') === $opt ? 'selected' : '' }}>
+                            {{ $opt }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="lg:col-span-2 flex items-center gap-2">
+                <button type="submit" class="flex-1 px-4 py-2 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-xs transition-colors cursor-pointer">
+                    Filter
+                </button>
+                @if(($tanggalAwal ?? '') !== '' || ($tanggalAkhir ?? '') !== '' || ($selectedUserId ?? '') !== '' || ($selectedJenisAktivitas ?? '') !== '' || ($keyword ?? '') !== '')
+                    <a href="{{ route('admin.audit') }}" class="px-3 py-2 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] text-xs font-semibold">
+                        Reset
+                    </a>
+                @endif
+            </div>
+        </form>
     </div>
 
     {{-- ==================== TABEL AUDIT LOG AKTIVITAS ==================== --}}

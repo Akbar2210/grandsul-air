@@ -11,6 +11,7 @@ use App\Services\BisnisDigital\OcrMeterService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -682,6 +683,7 @@ class DashboardController extends Controller
         $filterBulan = $request->query('bulan', $now->month);
         $filterTahun = $request->query('tahun', $now->year);
         $filterStatus = $request->query('status', 'semua');
+        $search = trim((string) $request->query('search', ''));
 
         $riwayatQuery = BacaanMeter::with(['unit.blok', 'petugas'])
             ->where('bulan', $filterBulan)
@@ -695,6 +697,15 @@ class DashboardController extends Controller
             $riwayatQuery->where('status_verifikasi', $filterStatus);
         }
 
+        if ($search !== '') {
+            $riwayatQuery->where(function ($q) use ($search) {
+                $q->whereHas('unit', function ($u) use ($search) {
+                    $u->where('nomor_rumah', 'like', "%{$search}%")
+                        ->orWhere('nama_pemilik', 'like', "%{$search}%");
+                })->orWhere('catatan_anomali', 'like', "%{$search}%");
+            });
+        }
+
         $riwayat = $riwayatQuery->orderBy('created_at', 'desc')->paginate(20);
 
         return view('petugas.riwayat', compact(
@@ -703,7 +714,127 @@ class DashboardController extends Controller
             'riwayat',
             'filterBulan',
             'filterTahun',
-            'filterStatus'
+            'filterStatus',
+            'search'
         ));
+    }
+
+    public function showRiwayat(int $id)
+    {
+        $user = Auth::user();
+        $bacaan = BacaanMeter::with(['unit.blok', 'petugas'])->findOrFail($id);
+
+        // Proteksi IDOR: Petugas hanya boleh melihat detail catatan miliknya sendiri
+        if (! $user->hasRole('admin') && (int) $bacaan->user_id !== (int) $user->id) {
+            abort(403, 'Anda tidak memiliki izin untuk melihat riwayat pencatatan petugas lain.');
+        }
+
+        $fotoUrl = null;
+        if ($bacaan->foto_meter) {
+            if (Storage::disk('public')->exists($bacaan->foto_meter) || file_exists(public_path('storage/'.$bacaan->foto_meter))) {
+                $fotoUrl = asset('storage/'.$bacaan->foto_meter);
+            }
+        }
+
+        $periodeStr = Carbon::now()->translatedFormat('F Y');
+
+        return view('petugas.riwayat-detail', compact(
+            'user',
+            'bacaan',
+            'fotoUrl',
+            'periodeStr'
+        ));
+    }
+
+    /**
+     * Ambil daftar notifikasi milik Petugas yang sedang login (polling asinkron).
+     */
+    public function getUnreadNotifikasi()
+    {
+        $user = Auth::user();
+        $list = Notifikasi::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('tgl_kirim')
+            ->orderByDesc('id')
+            ->take(15)
+            ->get();
+
+        $data = $list->map(function ($n) {
+            return [
+                'id' => $n->id,
+                'title' => $n->judul ?? 'Notifikasi',
+                'desc' => $n->pesan,
+                'time' => $n->tgl_kirim ? $n->tgl_kirim->diffForHumans() : 'Baru saja',
+                'unread' => ! (bool) $n->is_read,
+                'type' => $n->tipe ?? 'info',
+                'link' => $n->link ?? route('petugas.dashboard'),
+            ];
+        })->values()->all();
+
+        $unreadCount = $list->where('is_read', false)->count();
+
+        return response()->json([
+            'notifications' => $data,
+            'unread_count' => $unreadCount,
+        ]);
+    }
+
+    /**
+     * Tandai semua notifikasi milik Petugas yang sedang login sebagai dibaca.
+     */
+    public function readAllNotifikasi()
+    {
+        Notifikasi::query()
+            ->where('user_id', Auth::id())
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Tandai satu notifikasi milik Petugas sebagai dibaca (dengan proteksi lintas pengguna).
+     */
+    public function readNotifikasi(int $id)
+    {
+        $notif = Notifikasi::findOrFail($id);
+        $user = Auth::user();
+
+        if ((int) $notif->user_id !== (int) $user->id) {
+            abort(403, 'Anda tidak memiliki akses ke notifikasi pengguna lain.');
+        }
+
+        $notif->is_read = true;
+        $notif->save();
+
+        return response()->json([
+            'success' => true,
+            'link' => $notif->link ?? route('petugas.dashboard'),
+        ]);
+    }
+
+    /**
+     * Endpoint bersama /notifikasi/{id}/read dengan proteksi kepemilikan lintas pengguna (TC_052).
+     */
+    public function readNotifikasiShared(Request $request, int $id)
+    {
+        $notif = Notifikasi::findOrFail($id);
+        $user = Auth::user();
+
+        $isOwner = $notif->user_id !== null && (int) $notif->user_id === (int) $user->id;
+        $isAdminBroadcast = $notif->user_id === null && $user->hasRole('admin');
+
+        if (! $isOwner && ! $isAdminBroadcast) {
+            abort(403, 'Anda tidak memiliki akses ke notifikasi pengguna lain.');
+        }
+
+        $notif->is_read = true;
+        $notif->save();
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return redirect($notif->link ?? ($user->hasRole('admin') ? route('admin.dashboard') : route('petugas.dashboard')));
     }
 }

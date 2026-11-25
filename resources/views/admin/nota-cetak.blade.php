@@ -301,9 +301,9 @@
                     <span class="text-[8px] font-bold uppercase tracking-wider text-[#0F172A] mb-0.5">
                         VERIFIKASI QR RSA-2048
                     </span>
-                    <div class="w-20 h-20 bg-white p-1 border border-[#CBD5E1] [&>svg]:w-full [&>svg]:h-full">
+                    <a href="{{ $qrPayload }}" target="_blank" title="Buka tautan verifikasi QR Code" class="block w-20 h-20 bg-white p-1 border border-[#CBD5E1] [&>svg]:w-full [&>svg]:h-full hover:border-[#2563EB] transition-colors">
                         {!! $qrSvg !!}
-                    </div>
+                    </a>
                     <span class="text-[7.5px] font-bold text-[#0F172A] mt-1">
                         {{ $isLunas ? 'LUNAS' : 'TAGIHAN RESMI' }} • {{ $kodeNota }}
                     </span>

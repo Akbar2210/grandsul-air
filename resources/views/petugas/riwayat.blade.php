@@ -26,31 +26,46 @@
 
         <main class="flex-1 px-4 py-4 space-y-4">
 
-            {{-- FILTER --}}
-            <form method="GET" action="{{ route('petugas.riwayat') }}" class="flex items-end gap-2">
-                <div class="flex-1 min-w-0">
-                    <label class="text-[10px] font-medium text-[#64748B] block mb-1">Bulan</label>
-                    <select name="bulan" class="w-full h-10 px-2.5 border border-[#CBD5E1] rounded-xl text-xs text-[#0F172A] bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-xs">
-                        @for ($m = 1; $m <= 12; $m++)
-                            <option value="{{ $m }}" {{ $filterBulan == $m ? 'selected' : '' }}>
-                                {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
-                            </option>
-                        @endfor
-                    </select>
+            {{-- FILTER & PENCARIAN --}}
+            <form method="GET" action="{{ route('petugas.riwayat') }}" class="space-y-2.5">
+                <div class="relative">
+                    <svg class="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+                    </svg>
+                    <input
+                        type="text"
+                        name="search"
+                        value="{{ $search ?? '' }}"
+                        placeholder="Cari nomor unit, nama pemilik, atau SN..."
+                        class="w-full h-10 pl-9 pr-3 border border-[#CBD5E1] rounded-xl text-xs text-[#0F172A] bg-white placeholder-[#94A3B8] focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-xs"
+                    >
                 </div>
-                <div class="flex-1 min-w-0">
-                    <label class="text-[10px] font-medium text-[#64748B] block mb-1">Status</label>
-                    <select name="status" class="w-full h-10 px-2.5 border border-[#CBD5E1] rounded-xl text-xs text-[#0F172A] bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-xs">
-                        <option value="semua" {{ $filterStatus === 'semua' ? 'selected' : '' }}>Semua</option>
-                        <option value="valid" {{ $filterStatus === 'valid' ? 'selected' : '' }}>Valid</option>
-                        <option value="ter_flag" {{ $filterStatus === 'ter_flag' ? 'selected' : '' }}>Ter-flag</option>
-                        <option value="ditolak" {{ $filterStatus === 'ditolak' ? 'selected' : '' }}>Ditolak</option>
-                    </select>
+
+                <div class="flex items-end gap-2">
+                    <div class="flex-1 min-w-0">
+                        <label class="text-[10px] font-medium text-[#64748B] block mb-1">Bulan</label>
+                        <select name="bulan" class="w-full h-10 px-2.5 border border-[#CBD5E1] rounded-xl text-xs text-[#0F172A] bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-xs">
+                            @for ($m = 1; $m <= 12; $m++)
+                                <option value="{{ $m }}" {{ $filterBulan == $m ? 'selected' : '' }}>
+                                    {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
+                                </option>
+                            @endfor
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <label class="text-[10px] font-medium text-[#64748B] block mb-1">Status</label>
+                        <select name="status" class="w-full h-10 px-2.5 border border-[#CBD5E1] rounded-xl text-xs text-[#0F172A] bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-xs">
+                            <option value="semua" {{ $filterStatus === 'semua' ? 'selected' : '' }}>Semua</option>
+                            <option value="valid" {{ $filterStatus === 'valid' ? 'selected' : '' }}>Valid</option>
+                            <option value="ter_flag" {{ $filterStatus === 'ter_flag' ? 'selected' : '' }}>Ter-flag</option>
+                            <option value="ditolak" {{ $filterStatus === 'ditolak' ? 'selected' : '' }}>Ditolak</option>
+                        </select>
+                    </div>
+                    <input type="hidden" name="tahun" value="{{ $filterTahun }}">
+                    <button type="submit" class="h-10 px-4 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.98] text-white text-xs font-semibold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer">
+                        Terapkan
+                    </button>
                 </div>
-                <input type="hidden" name="tahun" value="{{ $filterTahun }}">
-                <button type="submit" class="h-10 px-4 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.98] text-white text-xs font-semibold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer">
-                    Terapkan
-                </button>
             </form>
 
             {{-- DAFTAR RIWAYAT --}}
@@ -71,47 +86,62 @@
                                 default => ['label' => 'Belum dicatat', 'dot' => 'bg-[#94A3B8]'],
                             };
                         @endphp
-                        <article class="bg-white border border-[#CBD5E1] rounded-xl shadow-xs overflow-hidden">
-                            <div class="px-3.5 pt-3 pb-2.5 flex items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <span class="font-mono text-[11px] font-semibold bg-[#F1F5F9] text-[#0F172A] border border-[#CBD5E1] rounded-md px-2 py-0.5 whitespace-nowrap shrink-0">{{ optional($r->unit)->nomor_rumah ?? '—' }}</span>
-                                        <span class="text-[13px] font-medium text-[#0F172A] truncate">{{ optional($r->unit)->nama_pemilik ?? '—' }}</span>
+                        <article class="bg-white border border-[#CBD5E1] hover:border-[#2563EB] rounded-xl shadow-xs overflow-hidden transition-colors">
+                            <a href="{{ route('petugas.riwayat.show', $r->id) }}" class="block">
+                                <div class="px-3.5 pt-3 pb-2.5 flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="font-mono text-[11px] font-semibold bg-[#F1F5F9] text-[#0F172A] border border-[#CBD5E1] rounded-md px-2 py-0.5 whitespace-nowrap shrink-0">{{ optional($r->unit)->nomor_rumah ?? '—' }}</span>
+                                            <span class="text-[13px] font-medium text-[#0F172A] truncate">{{ optional($r->unit)->nama_pemilik ?? '—' }}</span>
+                                        </div>
+                                        <p class="text-[11px] text-[#64748B] font-mono mt-1">{{ $r->created_at->format('d M Y, H:i') }}</p>
                                     </div>
-                                    <p class="text-[11px] text-[#64748B] font-mono mt-1">{{ $r->created_at->format('d M Y, H:i') }}</p>
-                                </div>
-                                <span class="inline-flex items-center gap-1.5 text-[11px] text-[#334155] whitespace-nowrap shrink-0">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusMeta['dot'] }}"></span>
-                                    {{ $statusMeta['label'] }}
-                                </span>
-                            </div>
-
-                            <div class="grid grid-cols-3 border-t border-[#F1F5F9] text-center bg-[#FAFCFF]/50">
-                                <div class="py-2">
-                                    <span class="text-[10px] text-[#64748B] block">Lalu</span>
-                                    <span class="text-xs font-semibold font-mono text-[#0F172A]">{{ number_format($r->angka_meter_bulanlalu, 0, ',', '.') }}</span>
-                                </div>
-                                <div class="py-2 border-x border-[#F1F5F9]">
-                                    <span class="text-[10px] text-[#64748B] block">Kini</span>
-                                    <span class="text-xs font-semibold font-mono text-[#0F172A]">{{ number_format($r->angka_meter, 0, ',', '.') }}</span>
-                                </div>
-                                <div class="py-2">
-                                    <span class="text-[10px] text-[#64748B] block">Pemakaian</span>
-                                    <span class="text-xs font-semibold font-mono {{ $pemakaian < 0 ? 'text-[#DC2626]' : 'text-[#0F172A]' }}">
-                                        {{ $pemakaian < 0 ? '' : '+' }}{{ number_format($pemakaian, 0, ',', '.') }} m³
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] text-[#334155] whitespace-nowrap shrink-0">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $statusMeta['dot'] }}"></span>
+                                        {{ $statusMeta['label'] }}
                                     </span>
                                 </div>
-                            </div>
 
-                            @if($r->catatan_anomali)
-                                <p class="px-3.5 py-2 border-t border-[#F1F5F9] text-[11px] text-[#475569] leading-snug">
-                                    {{ $r->catatan_anomali }}
-                                </p>
-                            @endif
+                                <div class="grid grid-cols-3 border-t border-[#F1F5F9] text-center bg-[#FAFCFF]/50">
+                                    <div class="py-2">
+                                        <span class="text-[10px] text-[#64748B] block">Lalu</span>
+                                        <span class="text-xs font-semibold font-mono text-[#0F172A]">{{ number_format($r->angka_meter_bulanlalu, 0, ',', '.') }}</span>
+                                    </div>
+                                    <div class="py-2 border-x border-[#F1F5F9]">
+                                        <span class="text-[10px] text-[#64748B] block">Kini</span>
+                                        <span class="text-xs font-semibold font-mono text-[#0F172A]">{{ number_format($r->angka_meter, 0, ',', '.') }}</span>
+                                    </div>
+                                    <div class="py-2">
+                                        <span class="text-[10px] text-[#64748B] block">Pemakaian</span>
+                                        <span class="text-xs font-semibold font-mono {{ $pemakaian < 0 ? 'text-[#DC2626]' : 'text-[#0F172A]' }}">
+                                            {{ $pemakaian < 0 ? '' : '+' }}{{ number_format($pemakaian, 0, ',', '.') }} m³
+                                        </span>
+                                    </div>
+                                </div>
+
+                                @if($r->alasan_penolakan || $r->catatan_anomali)
+                                    <p class="px-3.5 py-2 border-t border-[#F1F5F9] text-[11px] {{ $r->status_verifikasi === 'ditolak' ? 'text-[#DC2626] bg-[#FEF2F2]' : 'text-[#475569]' }} leading-snug">
+                                        {{ $r->alasan_penolakan ?: $r->catatan_anomali }}
+                                    </p>
+                                @endif
+
+                                <div class="px-3.5 py-2 border-t border-[#F1F5F9] bg-[#F8FAFC] flex items-center justify-between text-[11px] font-semibold text-[#2563EB]">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+                                        </svg>
+                                        <span>Lihat Detail &amp; Foto Bukti</span>
+                                    </span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                                    </svg>
+                                </div>
+                            </a>
                         </article>
                     @empty
                         <div class="bg-white border border-[#CBD5E1] rounded-xl shadow-xs p-8 text-center text-xs text-[#64748B]">
-                            Belum ada data pencatatan untuk filter ini.
+                            <p class="font-semibold text-[#0F172A]">Data tidak ditemukan</p>
+                            <p class="mt-1">Belum ada data pencatatan untuk pencarian atau filter ini.</p>
                         </div>
                     @endforelse
                 </div>

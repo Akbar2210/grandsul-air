@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\BacaanMeter;
 use App\Models\Notifikasi;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -32,43 +33,53 @@ class AppServiceProvider extends ServiceProvider
 
         try {
             View::composer(['layouts.admin', 'admin.*', 'petugas.*'], function ($view) {
-                static $terflagCount = null;
-                static $notificationsData = null;
-
-                if ($terflagCount === null) {
-                    if (Schema::hasTable('bacaan_meters')) {
-                        $terflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
-                    } else {
-                        $terflagCount = 0;
-                    }
+                $terflagCount = 0;
+                if (Schema::hasTable('bacaan_meters')) {
+                    $terflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
                 }
 
-                if ($notificationsData === null) {
-                    if (Schema::hasTable('notifikasis')) {
-                        $list = Notifikasi::where('is_read', false)->latest('tgl_kirim')->take(15)->get();
-                        $unreadCount = $list->count();
-                        $notificationsData = [
-                            'list' => $list->map(function ($n) {
-                                return [
-                                    'id' => $n->id,
-                                    'title' => $n->judul ?? 'Notifikasi Sistem',
-                                    'desc' => $n->pesan,
-                                    'time' => $n->tgl_kirim ? $n->tgl_kirim->diffForHumans() : 'Baru saja',
-                                    'unread' => true,
-                                    'type' => $n->tipe ?? 'info',
-                                    'link' => $n->link ?? route('admin.dashboard'),
-                                ];
-                            })->values()->all(),
-                            'unread_count' => $unreadCount,
-                        ];
-                    } else {
-                        $notificationsData = ['list' => [], 'unread_count' => 0];
+                $notificationsList = [];
+                $unreadCount = 0;
+
+                if (Auth::check() && Schema::hasTable('notifikasis')) {
+                    $user = Auth::user();
+                    $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
+
+                    $query = Notifikasi::query();
+                    if ($hasUserIdCol) {
+                        if ($user->hasRole('admin')) {
+                            $query->where(function ($q) use ($user) {
+                                $q->where('user_id', $user->id)
+                                    ->orWhereNull('user_id');
+                            });
+                        } else {
+                            $query->where('user_id', $user->id);
+                        }
                     }
+
+                    $list = $query->orderByDesc('tgl_kirim')->orderByDesc('id')->take(15)->get();
+                    $unreadCount = $list->where('is_read', false)->count();
+
+                    $defaultLink = $user->hasRole('admin')
+                        ? route('admin.dashboard')
+                        : route('petugas.dashboard');
+
+                    $notificationsList = $list->map(function ($n) use ($defaultLink) {
+                        return [
+                            'id' => $n->id,
+                            'title' => $n->judul ?? 'Notifikasi Sistem',
+                            'desc' => $n->pesan,
+                            'time' => $n->tgl_kirim ? $n->tgl_kirim->diffForHumans() : 'Baru saja',
+                            'unread' => ! (bool) $n->is_read,
+                            'type' => $n->tipe ?? 'info',
+                            'link' => $n->link ?? $defaultLink,
+                        ];
+                    })->values()->all();
                 }
 
                 $view->with('totalTerflagCount', $terflagCount);
-                $view->with('systemNotifications', $notificationsData['list']);
-                $view->with('systemUnreadCount', $notificationsData['unread_count']);
+                $view->with('systemNotifications', $notificationsList);
+                $view->with('systemUnreadCount', $unreadCount);
             });
         } catch (\Throwable) {
         }

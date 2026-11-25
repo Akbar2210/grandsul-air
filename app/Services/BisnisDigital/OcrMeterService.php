@@ -187,8 +187,8 @@ class OcrMeterService
             '{"digits": null, "confidence": 0, "raw_text": "", "notes": "Tidak ditemukan angka pada foto"}';
 
         try {
-            $response = Http::connectTimeout(3)
-                ->timeout(7)
+            $response = Http::connectTimeout(5)
+                ->timeout(20)
                 ->withOptions([
                     'force_ip_resolve' => 'v4',
                 ])

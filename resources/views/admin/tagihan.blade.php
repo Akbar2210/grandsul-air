@@ -7,6 +7,7 @@
 @section('page-actions')
 <form action="{{ route('admin.tagihan.batch') }}" method="POST">
     @csrf
+    <input type="hidden" name="periode" value="{{ $selectedPeriode ?: now()->format('Y-m') }}">
     <button type="submit" class="btn-cyan-cta px-4 py-2.5 text-xs font-bold flex items-center gap-2 shadow-sm cursor-pointer">
         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z"/>
@@ -19,10 +20,10 @@
 @section('content')
 <div class="space-y-5">
 
-    {{-- ==================== FILTER BAR (PERIODE & BLOK) ==================== --}}
+    {{-- ==================== FILTER BAR (PERIODE, BLOK, & PENCARIAN) ==================== --}}
     <div class="bg-white rounded-xl border border-[#CBD5E1] p-4 sm:p-5 shadow-sm">
         <form method="GET" action="{{ route('admin.tagihan') }}" class="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
-            <div class="sm:col-span-5">
+            <div class="sm:col-span-3">
                 <label class="text-xs font-bold text-[#0F172A] block mb-1">Periode Penagihan</label>
                 <select name="periode" onchange="this.form.submit()" class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white shadow-xs">
                     <option value="" {{ ($selectedPeriode ?? '') === '' ? 'selected' : '' }}>Semua Periode</option>
@@ -32,14 +33,25 @@
                 </select>
             </div>
 
-            <div class="sm:col-span-5">
+            <div class="sm:col-span-3">
                 <label class="text-xs font-bold text-[#0F172A] block mb-1">Blok Hunian</label>
                 <select name="blok" onchange="this.form.submit()" class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white shadow-xs">
-                    <option value="">Semua Blok (A–F)</option>
+                    <option value="">Semua blok</option>
                     @foreach($bloks as $b)
                     <option value="{{ $b->id }}" {{ $selectedBlok == $b->id ? 'selected' : '' }}>{{ $b->nama_blok }}</option>
                     @endforeach
                 </select>
+            </div>
+
+            <div class="sm:col-span-4">
+                <label class="text-xs font-bold text-[#0F172A] block mb-1">Cari Unit / Pemilik</label>
+                <div class="flex gap-2">
+                    <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Contoh: A-05 atau Nur Hidayah"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold cursor-pointer shrink-0">
+                        Cari
+                    </button>
+                </div>
             </div>
 
             <div class="sm:col-span-2">
@@ -82,8 +94,8 @@
 
         {{-- PROGRESS BAR ANTREAN BATCH: BAR INI TERISI DARI DATA YANG SUDAH DIFOTO PETUGAS & VALID SERTA DATA FLAG YANG SUDAH DITINJAU --}}
         <div class="w-full h-3.5 bg-[#E2E8F0] rounded-full overflow-hidden p-0.5">
-            <div class="h-full rounded-full transition-all duration-500 shadow-xs" 
-                 style="width: {{ $batchInfo['percent'] }}%; background-color: {{ ($batchInfo['unbilled_count'] ?? 0) > 0 ? '#2563EB' : '#CBD5E1' }};">
+            <div class="h-full rounded-full transition-all duration-500 shadow-xs"
+                 style="width: {{ $batchInfo['percent'] }}%; background-color: {{ ($batchInfo['unbilled_count'] ?? 0) > 0 ? '#2563EB' : (($batchInfo['processed'] ?? 0) > 0 ? '#16A34A' : '#CBD5E1') }};">
             </div>
         </div>
     </div>
@@ -111,8 +123,13 @@
                 <tbody class="divide-y divide-[#F1F5F9]">
                     @forelse($tagihans as $t)
                     <tr class="hover:bg-[#F8FAFC] transition-colors">
+                        @php
+                            $kodePeriode = preg_match('/^\d{4}-\d{2}$/', (string) $t->priode) === 1
+                                ? substr((string) $t->priode, 2, 2).substr((string) $t->priode, 5, 2)
+                                : '2611';
+                        @endphp
                         <td class="py-3.5 px-5 font-mono font-bold text-[#0F172A] tabular-nums whitespace-nowrap">
-                            {{ $t->kode_tagihan ?? ('TGH-2611-' . str_pad($t->id, 4, '0', STR_PAD_LEFT)) }}
+                            {{ $t->kode_tagihan ?? ('TGH-'.$kodePeriode.'-'.str_pad($t->id, 4, '0', STR_PAD_LEFT)) }}
                         </td>
                         <td class="py-3.5 px-4 whitespace-nowrap">
                             <span class="font-mono font-bold text-xs text-[#0F172A] tabular-nums">

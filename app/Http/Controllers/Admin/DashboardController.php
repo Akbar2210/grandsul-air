@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\BatchProcessing\BatchTagihanService;
 use App\Services\BatchProcessing\SuratTunggakanService;
 use App\Services\CyberSecurity\RsaSignatureService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -261,11 +262,12 @@ class DashboardController extends Controller
             $bacaan->catatan_anomali = 'Ditolak Admin: '.$alasan;
             $bacaan->save();
 
-            // Notifikasi ke petugas lapangan
+            // Notifikasi ke petugas lapangan pemilik bacaan
             Notifikasi::create([
+                'user_id' => $bacaan->user_id,
                 'unit_id' => $bacaan->unit_id,
-                'judul' => "Pencatatan Unit {$bacaan->unit->nomor_rumah} Ditolak",
-                'pesan' => "Pencatatan meteran Unit {$bacaan->unit->nomor_rumah} ({$bacaan->unit->nama_pemilik}) ditolak admin. Alasan: {$alasan}. Silakan lakukan foto ulang atau koreksi angka.",
+                'judul' => "Pembacaan unit {$bacaan->unit->nomor_rumah} ditolak",
+                'pesan' => "Alasan penolakan: {$alasan}. Silakan lakukan foto ulang atau koreksi angka meteran Unit {$bacaan->unit->nomor_rumah} ({$bacaan->unit->nama_pemilik}).",
                 'tipe' => 'flag',
                 'link' => route('petugas.pindai', ['unit_id' => $bacaan->unit_id, 'blok_id' => $bacaan->unit->blok_id]),
                 'status_terkirim' => true,
@@ -329,6 +331,7 @@ class DashboardController extends Controller
         $selectedPeriode = (string) $request->get('periode', '');
         $selectedBlok = $request->get('blok');
         $selectedStatus = $request->get('status');
+        $search = trim((string) $request->get('search', ''));
 
         $existingPeriods = Tagihan::query()->distinct()->pluck('priode')->all();
         $periodeOptions = $this->buildPeriodeOptions($existingPeriods);
@@ -345,22 +348,47 @@ class DashboardController extends Controller
             ->when($selectedStatus, function ($q) use ($selectedStatus) {
                 $q->where('status_bayar', $selectedStatus);
             })
-            ->latest();
+            ->when($search !== '', function ($q) use ($search) {
+                $q->whereHas('unit', function ($u) use ($search) {
+                    $u->where('nomor_rumah', 'like', "%{$search}%")
+                        ->orWhere('nama_pemilik', 'like', "%{$search}%");
+                });
+            })
+            ->latest('id');
 
         $tagihans = $query->paginate(12)->withQueryString();
 
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
         $totalTargetUnit = max(1, UnitHunian::count());
-        $currentTagihanCount = Tagihan::count();
 
-        // Data pembacaan valid yang SUDAH MASUK ke antrean batch (menunggu dieksekusi jadi tagihan)
-        // Bar ini KHUSUS terisi dari data yang sudah difoto petugas dan valid, serta data ter-flag yang telah ditinjau/divalidasi oleh admin
-        $unbilledCount = BacaanMeter::where('status_verifikasi', 'valid')->whereDoesntHave('tagihan')->count();
+        $activeBatchPeriode = ($selectedPeriode !== '' && preg_match('/^\d{4}-\d{2}$/', $selectedPeriode) === 1)
+            ? $selectedPeriode
+            : $now->format('Y-m');
+        [$batchYear, $batchMonth] = array_map('intval', explode('-', $activeBatchPeriode));
 
-        // Persentase bar antrean batch dihitung dari total target unit (700 unit)
-        $queuePercent = $unbilledCount > 0
-            ? min(100, max(5, round(($unbilledCount / $totalTargetUnit) * 100)))
-            : 0;
+        $billedIdsInPeriode = Tagihan::query()
+            ->where('priode', $activeBatchPeriode)
+            ->pluck('unit_id')
+            ->all();
+        $currentTagihanCount = count($billedIdsInPeriode);
+
+        // Data pembacaan valid pada periode terpilih yang siap diproses menjadi tagihan
+        $unbilledCount = BacaanMeter::query()
+            ->where('bulan', $batchMonth)
+            ->where('tahun', $batchYear)
+            ->where('status_verifikasi', 'valid')
+            ->when(! empty($billedIdsInPeriode), fn ($q) => $q->whereNotIn('unit_id', $billedIdsInPeriode))
+            ->distinct('unit_id')
+            ->count('unit_id');
+
+        // Persentase progress bar batch (saat sudah terbit semua -> 100%, atau antrean siap -> proporsi antrean)
+        if ($unbilledCount > 0) {
+            $queuePercent = min(100, max(5, round(($unbilledCount / $totalTargetUnit) * 100)));
+        } elseif ($currentTagihanCount > 0) {
+            $queuePercent = min(100, round(($currentTagihanCount / $totalTargetUnit) * 100));
+        } else {
+            $queuePercent = 0;
+        }
 
         // Status Pemrosesan Antrean
         $workerStatus = $unbilledCount > 0
@@ -368,18 +396,19 @@ class DashboardController extends Controller
             : 'Selesai (Antrean Kosong)';
 
         $batchInfo = [
+            'periode' => $activeBatchPeriode,
             'total_target' => $totalTargetUnit,
             'processed' => $currentTagihanCount,
             'unbilled_count' => $unbilledCount,
-            'sisa_target' => max(1, $totalTargetUnit - $currentTagihanCount),
+            'sisa_target' => max(0, $totalTargetUnit - $currentTagihanCount),
             'status' => $workerStatus,
             'percent' => $queuePercent,
             'success_count' => $currentTagihanCount,
             'failed_count' => 0,
-            'duration' => '1 mnt 12 dtk',
+            'duration' => '< 1 dtk',
         ];
 
-        return view('admin.tagihan', compact('tagihans', 'bloks', 'periodeStr', 'periodeOptions', 'selectedPeriode', 'selectedBlok', 'selectedStatus', 'batchInfo', 'totalTerflagCount'));
+        return view('admin.tagihan', compact('tagihans', 'bloks', 'periodeStr', 'periodeOptions', 'selectedPeriode', 'selectedBlok', 'selectedStatus', 'search', 'batchInfo', 'totalTerflagCount'));
     }
 
     /**
@@ -388,18 +417,42 @@ class DashboardController extends Controller
     public function batchTagihan(Request $request, BatchTagihanService $batchTagihanService)
     {
         $user = Auth::user();
-        $result = $batchTagihanService->executeBatchBilling();
+        $requestedPeriode = trim((string) $request->input('periode', ''));
+        $targetPeriode = preg_match('/^\d{4}-\d{2}$/', $requestedPeriode) === 1
+            ? $requestedPeriode
+            : now()->format('Y-m');
+
+        $startedAt = microtime(true);
+        $result = $batchTagihanService->executeBatchBilling($targetPeriode);
+        $elapsedSeconds = round(microtime(true) - $startedAt, 2);
+
+        $priode = $result['periode'];
+        $periodeLabel = Carbon::createFromFormat('Y-m', $priode)->translatedFormat('F Y');
+
+        // Pencegahan duplikasi batch pada periode yang sama (TC_028)
+        if ($result['already_processed']) {
+            return redirect()
+                ->route('admin.tagihan', ['periode' => $priode])
+                ->with('error', "Tagihan periode {$periodeLabel} sudah terbit sebelumnya ({$result['existing_bills_count']} unit). Sistem menolak pembuatan tagihan ganda.");
+        }
+
+        if ($result['new_bills_count'] === 0) {
+            return redirect()
+                ->route('admin.tagihan', ['periode' => $priode])
+                ->with('error', "Tidak ada data bacaan meter valid yang menunggu diproses untuk periode {$periodeLabel}.");
+        }
+
         $notaCount = $result['nota_issued_count'];
         $newCount = $result['new_bills_count'];
-        $priode = $result['periode'];
         $suratCount = $result['surat_generated_count'];
 
         Notifikasi::create([
+            'user_id' => $user->id,
             'unit_id' => null,
             'judul' => 'Batch Tagihan Massal Selesai',
-            'pesan' => "Kalkulasi tarif progresif untuk {$notaCount} nota/tagihan periode {$priode} selesai diproses ({$newCount} tagihan baru terbit, {$suratCount} surat tunggakan).",
+            'pesan' => "Kalkulasi tarif progresif untuk {$notaCount} tagihan periode {$periodeLabel} selesai diproses dalam {$elapsedSeconds} detik ({$newCount} tagihan baru terbit, {$suratCount} surat tunggakan).",
             'tipe' => 'batch',
-            'link' => route('admin.tagihan'),
+            'link' => route('admin.tagihan', ['periode' => $priode]),
             'status_terkirim' => true,
             'is_read' => false,
             'tgl_kirim' => Carbon::now(),
@@ -407,12 +460,14 @@ class DashboardController extends Controller
 
         AuditLog::create([
             'user_id' => $user->id,
-            'aktivitas' => "Mengeksekusi proses batch tagihan air massal periode {$priode} ({$notaCount} nota rekening diterbitkan otomatis, {$newCount} tagihan baru, {$suratCount} surat tunggakan >= 4 bulan)",
+            'aktivitas' => "Mengeksekusi proses batch tagihan air massal periode {$periodeLabel} ({$newCount} tagihan baru terbit, total {$notaCount} unit selesai dalam {$elapsedSeconds} detik)",
             'ip_address' => $request->ip(),
             'timestamp' => Carbon::now(),
         ]);
 
-        return redirect()->route('admin.tagihan')->with('success', "Batch Processing selesai: {$notaCount} Nota Rekening Air Sumur Bor telah diterbitkan otomatis dan siap dicetak fisik terlebih dahulu sebelum dibayar pelanggan ({$suratCount} Surat Penyampaian tunggakan >= 4 bulan siap cetak).");
+        return redirect()
+            ->route('admin.tagihan', ['periode' => $priode])
+            ->with('success', "Batch Processing periode {$periodeLabel} selesai dalam {$elapsedSeconds} detik: {$newCount} tagihan baru terbit (Total {$notaCount}/{$notaCount} unit siap cetak, {$suratCount} surat tunggakan >= 4 bulan).");
     }
 
     /**
@@ -461,14 +516,14 @@ class DashboardController extends Controller
     }
 
     /**
-     * Cetak Surat Penyampaian Resmi (Template PT. Arista Jaya)
+     * Cetak / Unduh PDF Surat Penyampaian Resmi (Template PT. Arista Jaya) via DomPDF
      */
     public function cetakSuratTunggakan(int $unitId, SuratTunggakanService $suratService)
     {
         $surat = $suratService->getSuratUntukUnit($unitId);
 
         if (! $surat) {
-            return redirect()->route('admin.surat-tunggakan')->with('error', 'Data tunggakan untuk unit tersebut tidak ditemukan.');
+            return redirect()->route('admin.surat-tunggakan')->with('error', 'Unit tidak memenuhi kriteria tunggakan >= 4 bulan.');
         }
 
         AuditLog::create([
@@ -478,7 +533,12 @@ class DashboardController extends Controller
             'timestamp' => Carbon::now(),
         ]);
 
-        return view('admin.surat-tunggakan-cetak', compact('surat'));
+        $pdf = Pdf::loadView('admin.surat-tunggakan-pdf', compact('surat'))
+            ->setPaper('a4', 'portrait');
+
+        $safeUnit = preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) $surat['nomor_rumah']);
+
+        return $pdf->download("Surat_Peringatan_{$safeUnit}.pdf");
     }
 
     /**
@@ -634,45 +694,80 @@ class DashboardController extends Controller
     }
 
     /**
-     * 6. Laporan Rekapitulasi Bulanan & Harian + Ekspor PDF
-     * Sesuai SRS Page 13 & Lampiran B (f)
+     * Helper agregasi data Laporan Bulanan (Per Blok) sesuai filter Bulan, Tahun, Blok, dan Status.
+     *
+     * @return array<string, mixed>
      */
-    public function laporan(Request $request)
+    private function buildLaporanBulananData(Request $request): array
     {
         $now = Carbon::now();
-        $periodeStr = $now->translatedFormat('F Y');
-        $mode = $request->get('mode', 'bulanan'); // bulanan | harian
-        $selectedTanggal = $request->get('tanggal', $now->format('Y-m-d'));
-        $tanggalFormatted = Carbon::parse($selectedTanggal)->translatedFormat('d F Y');
+        $selectedBulan = max(1, min(12, (int) $request->query('bulan', $now->month)));
+        $selectedTahun = max(2020, min(2099, (int) $request->query('tahun', $now->year)));
+        $selectedBlok = $request->query('blok');
+        $selectedStatus = trim((string) $request->query('status', ''));
+
+        $periodeKey = sprintf('%04d-%02d', $selectedTahun, $selectedBulan);
+
+        $bulanNames = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+        $bulanShort = [
+            1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
+            5 => 'Mei', 6 => 'Jun', 7 => 'Jul', 8 => 'Agu',
+            9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des',
+        ];
+
+        $periodeLabel = ($bulanNames[$selectedBulan] ?? 'Bulan').' '.$selectedTahun;
+        $periodeFileSuffix = ($bulanShort[$selectedBulan] ?? 'Bln').$selectedTahun;
 
         $bloks = BlokHunian::withCount('unitHunians')->orderBy('nama_blok')->get();
-        $selectedBlok = $request->get('blok');
 
-        // Agregasi Laporan Bulanan per Blok A-F
+        // Satu kueri agregasi terkelompok per blok untuk periode terpilih (anti N+1)
+        $statsQuery = Tagihan::query()
+            ->join('unit_hunians', 'tagihans.unit_id', '=', 'unit_hunians.id')
+            ->where('tagihans.priode', $periodeKey)
+            ->when($selectedBlok, function ($q) use ($selectedBlok) {
+                $q->where('unit_hunians.blok_id', (int) $selectedBlok);
+            })
+            ->when($selectedStatus !== '' && $selectedStatus !== 'semua', function ($q) use ($selectedStatus) {
+                if ($selectedStatus === 'lunas') {
+                    $q->where('tagihans.status_bayar', 'lunas');
+                } elseif ($selectedStatus === 'belum_lunas') {
+                    $q->where('tagihans.status_bayar', '!=', 'lunas');
+                }
+            })
+            ->selectRaw("
+                unit_hunians.blok_id,
+                COUNT(DISTINCT tagihans.unit_id) AS unit_count,
+                COUNT(tagihans.id) AS transaksi_count,
+                COALESCE(SUM(tagihans.volume_pemakaian), 0) AS total_vol,
+                COALESCE(SUM(tagihans.total_tagihan), 0) AS total_tagihan,
+                COALESCE(SUM(CASE WHEN tagihans.status_bayar = 'lunas' THEN tagihans.total_tagihan ELSE 0 END), 0) AS total_bayar
+            ")
+            ->groupBy('unit_hunians.blok_id')
+            ->get()
+            ->keyBy('blok_id');
+
         $rekapBlok = [];
-        $grandTotalTagihan = 0;
-        $grandTotalTerbayar = 0;
-        $grandTotalVolume = 0;
+        $grandTotalTagihan = 0.0;
+        $grandTotalTerbayar = 0.0;
+        $grandTotalVolume = 0.0;
         $grandTotalUnit = 0;
+        $transaksiCount = 0;
 
         foreach ($bloks as $blok) {
             if ($selectedBlok && (int) $selectedBlok !== (int) $blok->id) {
                 continue;
             }
 
-            $unitCount = $blok->unit_hunians_count > 0 ? $blok->unit_hunians_count : 0;
-
-            $totalVol = (float) Tagihan::whereHas('unit', function ($u) use ($blok) {
-                $u->where('blok_id', $blok->id);
-            })->sum('volume_pemakaian');
-
-            $totalTagihan = (float) Tagihan::whereHas('unit', function ($u) use ($blok) {
-                $u->where('blok_id', $blok->id);
-            })->sum('total_tagihan');
-
-            $totalBayar = (float) Tagihan::whereHas('unit', function ($u) use ($blok) {
-                $u->where('blok_id', $blok->id);
-            })->where('status_bayar', 'lunas')->sum('total_tagihan');
+            $row = $statsQuery->get($blok->id);
+            $unitCount = (int) ($row->unit_count ?? 0);
+            $rowTransaksi = (int) ($row->transaksi_count ?? 0);
+            $totalVol = (float) ($row->total_vol ?? 0);
+            $totalTagihan = (float) ($row->total_tagihan ?? 0);
+            $totalBayar = (float) ($row->total_bayar ?? 0);
 
             $rekapBlok[] = [
                 'nama' => $blok->nama_blok,
@@ -684,12 +779,58 @@ class DashboardController extends Controller
             ];
 
             $grandTotalUnit += $unitCount;
+            $transaksiCount += $rowTransaksi;
             $grandTotalVolume += $totalVol;
             $grandTotalTagihan += $totalTagihan;
             $grandTotalTerbayar += $totalBayar;
         }
 
         $grandBelumLunas = max(0, $grandTotalTagihan - $grandTotalTerbayar);
+
+        $selectedBlokModel = $selectedBlok ? $bloks->firstWhere('id', (int) $selectedBlok) : null;
+        $selectedBlokName = $selectedBlokModel ? $selectedBlokModel->nama_blok : 'Semua Blok (A – F)';
+        $selectedStatusLabel = match ($selectedStatus) {
+            'lunas' => 'Lunas',
+            'belum_lunas' => 'Belum Lunas',
+            default => 'Semua',
+        };
+
+        return [
+            'bloks' => $bloks,
+            'bulanNames' => $bulanNames,
+            'selectedBulan' => $selectedBulan,
+            'selectedTahun' => $selectedTahun,
+            'selectedBlok' => $selectedBlok,
+            'selectedStatus' => $selectedStatus,
+            'selectedBlokName' => $selectedBlokName,
+            'selectedStatusLabel' => $selectedStatusLabel,
+            'periodeKey' => $periodeKey,
+            'periodeLabel' => $periodeLabel,
+            'periodeStr' => $periodeLabel,
+            'periodeFileSuffix' => $periodeFileSuffix,
+            'rekapBlok' => $rekapBlok,
+            'transaksiCount' => $transaksiCount,
+            'grandTotalUnit' => $grandTotalUnit,
+            'grandTotalVolume' => $grandTotalVolume,
+            'grandTotalTagihan' => $grandTotalTagihan,
+            'grandTotalTerbayar' => $grandTotalTerbayar,
+            'grandBelumLunas' => $grandBelumLunas,
+        ];
+    }
+
+    /**
+     * 6. Laporan Rekapitulasi Bulanan & Harian + Ekspor PDF
+     * Sesuai SRS Page 13 & Lampiran B (f)
+     */
+    public function laporan(Request $request)
+    {
+        $now = Carbon::now();
+        $mode = $request->get('mode', 'bulanan'); // bulanan | harian
+        $selectedTanggal = $request->get('tanggal', $now->format('Y-m-d'));
+        $tanggalFormatted = Carbon::parse($selectedTanggal)->translatedFormat('d F Y');
+
+        $bulanan = $this->buildLaporanBulananData($request);
+        $selectedBlok = $bulanan['selectedBlok'];
 
         // Data Laporan Harian (Per Hari)
         $pembayaranHarian = Pembayaran::with(['tagihan.unit.blok'])
@@ -721,44 +862,49 @@ class DashboardController extends Controller
 
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
 
-        return view('admin.laporan', compact(
-            'mode',
-            'selectedTanggal',
-            'tanggalFormatted',
-            'rekapBlok',
-            'grandTotalUnit',
-            'grandTotalVolume',
-            'grandTotalTagihan',
-            'grandTotalTerbayar',
-            'grandBelumLunas',
-            'pembayaranHarian',
-            'bacaanHarian',
-            'harianTotalMasuk',
-            'harianTotalTunai',
-            'harianTotalTransfer',
-            'harianJumlahTransaksi',
-            'harianJumlahBacaan',
-            'harianTotalVolume',
-            'periodeStr',
-            'bloks',
-            'totalTerflagCount'
-        ));
+        return view('admin.laporan', array_merge($bulanan, [
+            'mode' => $mode,
+            'selectedTanggal' => $selectedTanggal,
+            'tanggalFormatted' => $tanggalFormatted,
+            'pembayaranHarian' => $pembayaranHarian,
+            'bacaanHarian' => $bacaanHarian,
+            'harianTotalMasuk' => $harianTotalMasuk,
+            'harianTotalTunai' => $harianTotalTunai,
+            'harianTotalTransfer' => $harianTotalTransfer,
+            'harianJumlahTransaksi' => $harianJumlahTransaksi,
+            'harianJumlahBacaan' => $harianJumlahBacaan,
+            'harianTotalVolume' => $harianTotalVolume,
+            'totalTerflagCount' => $totalTerflagCount,
+        ]));
     }
 
     /**
-     * Ekspor Laporan PDF / Print Preview
+     * Ekspor Laporan Bulanan ke PDF via DomPDF (dengan pencegahan cetak PDF kosong)
      */
     public function exportLaporanPdf(Request $request)
     {
-        $user = Auth::user();
+        $data = $this->buildLaporanBulananData($request);
+
+        // Pencegahan cetak PDF kosong jika periode belum memiliki data transaksi (TC_059)
+        if ($data['transaksiCount'] === 0) {
+            return redirect()
+                ->route('admin.laporan', $request->query())
+                ->with('error', 'Tidak ada data transaksi pada periode terpilih');
+        }
+
+        $filename = "Laporan_Bulanan_{$data['periodeFileSuffix']}.pdf";
+
         AuditLog::create([
-            'user_id' => $user->id,
-            'aktivitas' => 'Mengekspor laporan rekapitulasi tagihan & pembayaran bulanan format PDF',
+            'user_id' => Auth::id(),
+            'aktivitas' => "Mengekspor laporan rekapitulasi bulanan periode {$data['periodeLabel']} format PDF ({$filename})",
             'ip_address' => $request->ip(),
             'timestamp' => Carbon::now(),
         ]);
 
-        return $this->laporan($request);
+        $pdf = Pdf::loadView('admin.laporan-pdf', $data)
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download($filename);
     }
 
     /**
@@ -1290,49 +1436,97 @@ class DashboardController extends Controller
         $now = Carbon::now();
         $periodeStr = $now->translatedFormat('F Y');
 
-        // Pastikan ada log sampel jika masih kosong
-        if (AuditLog::count() === 0) {
-            $sampleLogs = [
-                ['user' => 'Admin Utama', 'role' => 'Admin', 'act' => 'Memproses tagihan batch periode Okt 2026 (700 unit)'],
-                ['user' => 'Rahmat', 'role' => 'Petugas', 'act' => 'Mengirim pencatatan meter unit A-12 (OCR conf. 71%)'],
-                ['user' => 'Admin Utama', 'role' => 'Admin', 'act' => 'Memvalidasi data ter-flag unit A-12'],
-                ['user' => 'Admin Utama', 'role' => 'Admin', 'act' => 'Mencatat pembayaran PAY-2610-0031 (Transfer)'],
-                ['user' => 'Admin Utama', 'role' => 'Admin', 'act' => 'Mencetak nota kriptografis TGH-2610-0001'],
-                ['user' => 'Rahmat', 'role' => 'Petugas', 'act' => 'Login ke sistem'],
-                ['user' => 'Admin Utama', 'role' => 'Admin', 'act' => 'Mengubah tarif progresif Blok 3'],
-                ['user' => 'Hasan', 'role' => 'Petugas', 'act' => 'Mengirim pencatatan meter unit D-14'],
-                ['user' => 'Admin Utama', 'role' => 'Admin', 'act' => 'Mengirim WA Auto-Reminder (41 unit)'],
-                ['user' => 'Admin Utama', 'role' => 'Admin', 'act' => 'Login ke sistem'],
-            ];
-            $adminUser = User::first() ?? User::factory()->create();
-            foreach ($sampleLogs as $i => $s) {
-                AuditLog::create([
-                    'user_id' => $adminUser->id,
-                    'aktivitas' => $s['act'],
-                    'ip_address' => '103.28.12.'.(40 + $i),
-                    'timestamp' => Carbon::now()->subMinutes($i * 14),
-                ]);
+        $tanggalAwal = trim((string) $request->query('tanggal_awal', ''));
+        $tanggalAkhir = trim((string) $request->query('tanggal_akhir', ''));
+        $selectedUserId = $request->query('user_id');
+        $selectedJenisAktivitas = trim((string) $request->query('jenis_aktivitas', ''));
+        $keyword = trim((string) $request->query('aktivitas', ''));
+        $dateError = null;
+
+        // Validasi rentang tanggal terbalik (TC_055)
+        if ($tanggalAwal !== '' && $tanggalAkhir !== '') {
+            try {
+                $startDate = Carbon::parse($tanggalAwal)->startOfDay();
+                $endDate = Carbon::parse($tanggalAkhir)->endOfDay();
+
+                if ($endDate->lt($startDate)) {
+                    $dateError = 'Rentang tanggal tidak valid (Tanggal akhir harus setelah tanggal awal)';
+                }
+            } catch (\Throwable) {
+                $dateError = 'Format rentang tanggal tidak valid.';
             }
         }
 
-        $query = AuditLog::with('user')->latest('timestamp');
+        if ($dateError !== null) {
+            $logs = AuditLog::with('user.roles')->whereRaw('1 = 0')->paginate(15)->withQueryString();
+        } else {
+            $query = AuditLog::with('user.roles')->latest('timestamp')->latest('id');
 
-        if ($request->filled('aktivitas')) {
-            $query->where('aktivitas', 'like', '%'.$request->aktivitas.'%');
+            if ($tanggalAwal !== '') {
+                $query->where('timestamp', '>=', Carbon::parse($tanggalAwal)->startOfDay());
+            }
+
+            if ($tanggalAkhir !== '') {
+                $query->where('timestamp', '<=', Carbon::parse($tanggalAkhir)->endOfDay());
+            }
+
+            if ($selectedUserId !== null && $selectedUserId !== '') {
+                $query->where('user_id', (int) $selectedUserId);
+            }
+
+            if ($selectedJenisAktivitas !== '') {
+                $query->where('aktivitas', 'like', '%'.$selectedJenisAktivitas.'%');
+            }
+
+            if ($keyword !== '') {
+                $query->where('aktivitas', 'like', '%'.$keyword.'%');
+            }
+
+            $logs = $query->paginate(15)->withQueryString();
         }
 
-        $logs = $query->paginate(15)->withQueryString();
+        $users = User::with('roles')->orderBy('name')->get();
+        $activityOptions = [
+            'Mengirim pencatatan meter',
+            'Memproses tagihan batch',
+            'Memvalidasi data ter-flag',
+            'Mencatat pembayaran',
+            'Mencetak Surat Penyampaian',
+            'Mencetak nota',
+            'Login ke sistem',
+        ];
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
 
-        return view('admin.audit', compact('logs', 'periodeStr', 'totalTerflagCount'));
+        return view('admin.audit', compact(
+            'logs',
+            'periodeStr',
+            'totalTerflagCount',
+            'users',
+            'activityOptions',
+            'tanggalAwal',
+            'tanggalAkhir',
+            'selectedUserId',
+            'selectedJenisAktivitas',
+            'keyword',
+            'dateError'
+        ));
     }
 
     /**
-     * Ambil notifikasi unread terkini untuk polling background sistem
+     * Ambil notifikasi terkini untuk polling background sistem (khusus Admin)
      */
     public function getUnreadNotifikasi()
     {
-        $list = Notifikasi::where('is_read', false)->latest('tgl_kirim')->take(15)->get();
+        $adminId = Auth::id();
+        $list = Notifikasi::query()
+            ->where(function ($q) use ($adminId) {
+                $q->where('user_id', $adminId)
+                    ->orWhereNull('user_id');
+            })
+            ->orderByDesc('tgl_kirim')
+            ->orderByDesc('id')
+            ->take(15)
+            ->get();
 
         $data = $list->map(function ($n) {
             return [
@@ -1340,38 +1534,51 @@ class DashboardController extends Controller
                 'title' => $n->judul ?? 'Notifikasi Sistem',
                 'desc' => $n->pesan,
                 'time' => $n->tgl_kirim ? $n->tgl_kirim->diffForHumans() : 'Baru saja',
-                'unread' => true,
+                'unread' => ! (bool) $n->is_read,
                 'type' => $n->tipe ?? 'info',
                 'link' => $n->link ?? route('admin.dashboard'),
             ];
         })->values()->all();
 
+        $unreadCount = $list->where('is_read', false)->count();
+
         return response()->json([
             'notifications' => $data,
-            'unread_count' => count($data),
+            'unread_count' => $unreadCount,
         ]);
     }
 
     /**
-     * Tandai semua notifikasi sistem sebagai dibaca
+     * Tandai semua notifikasi sistem Admin sebagai dibaca
      */
     public function readAllNotifikasi()
     {
-        Notifikasi::where('is_read', false)->update(['is_read' => true]);
+        $adminId = Auth::id();
+        Notifikasi::query()
+            ->where(function ($q) use ($adminId) {
+                $q->where('user_id', $adminId)
+                    ->orWhereNull('user_id');
+            })
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
 
         return response()->json(['success' => true]);
     }
 
     /**
-     * Tandai satu notifikasi sistem sebagai dibaca
+     * Tandai satu notifikasi sistem Admin sebagai dibaca
      */
     public function readNotifikasi(int $id)
     {
-        $notif = Notifikasi::find($id);
-        if ($notif) {
-            $notif->is_read = true;
-            $notif->save();
+        $notif = Notifikasi::findOrFail($id);
+        $adminId = Auth::id();
+
+        if ($notif->user_id !== null && (int) $notif->user_id !== (int) $adminId) {
+            abort(403, 'Anda tidak memiliki akses ke notifikasi pengguna lain.');
         }
+
+        $notif->is_read = true;
+        $notif->save();
 
         return response()->json(['success' => true]);
     }

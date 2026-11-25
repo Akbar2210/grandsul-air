@@ -84,8 +84,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/master/petugas/{id}', [AdminDashboardController::class, 'destroyPetugas'])->name('master.petugas.destroy');
     Route::post('/master/blok', [AdminDashboardController::class, 'storeBlok'])->name('master.blok.store');
 
-    // 8. Audit Log Aktivitas
+    // 8. Audit Log Aktivitas (Read-Only Immutable)
     Route::get('/audit', [AdminDashboardController::class, 'audit'])->name('audit');
+    Route::get('/audit-log', [AdminDashboardController::class, 'audit'])->name('audit-log');
+    Route::match(['put', 'patch', 'delete'], '/audit/{id}', fn () => abort(403, 'Audit log bersifat immutable (tidak dapat diubah atau dihapus).'))->name('audit.immutable');
+    Route::match(['put', 'patch', 'delete'], '/audit-log/{id}', fn () => abort(403, 'Audit log bersifat immutable (tidak dapat diubah atau dihapus).'))->name('audit-log.immutable');
 
     // 9. Notifikasi Sistem Interaktif
     Route::get('/notifikasi/unread-list', [AdminDashboardController::class, 'getUnreadNotifikasi'])->name('notifikasi.unread-list');
@@ -100,9 +103,16 @@ Route::middleware(['auth', 'role:petugas|admin'])->prefix('petugas')->name('petu
     Route::post('/pindai/ocr', [PetugasDashboardController::class, 'ocrScan'])->name('pindai.ocr');
     Route::post('/pindai', [PetugasDashboardController::class, 'store'])->name('pindai.store');
     Route::get('/riwayat', [PetugasDashboardController::class, 'riwayat'])->name('riwayat');
+    Route::get('/riwayat/{id}', [PetugasDashboardController::class, 'showRiwayat'])->name('riwayat.show');
+
+    // Notifikasi Petugas Lapangan
+    Route::get('/notifikasi/unread-list', [PetugasDashboardController::class, 'getUnreadNotifikasi'])->name('notifikasi.unread-list');
+    Route::post('/notifikasi/read-all', [PetugasDashboardController::class, 'readAllNotifikasi'])->name('notifikasi.read-all');
+    Route::post('/notifikasi/{id}/read', [PetugasDashboardController::class, 'readNotifikasi'])->name('notifikasi.read');
 });
 
 Route::middleware('auth')->group(function () {
+    Route::match(['get', 'post'], '/notifikasi/{id}/read', [PetugasDashboardController::class, 'readNotifikasiShared'])->name('notifikasi.read');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

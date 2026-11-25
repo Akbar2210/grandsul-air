@@ -4,11 +4,11 @@ namespace App\Services\BatchProcessing;
 
 use App\Models\BacaanMeter;
 use App\Models\Tagihan;
-use App\Models\TarifAir;
 use App\Models\UnitHunian;
 use App\Services\CyberSecurity\RsaSignatureService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * ============================================================================
@@ -29,6 +29,9 @@ class BatchTagihanService
     // Denda keterlambatan per bulan sesuai aturan PT. Arista Jaya (Rp 10.000)
     public const DENDA_PER_BULAN = 10000;
 
+    // Biaya beban / administrasi tetap per bulan (Rp 11.000)
+    public const BIAYA_BEBAN_ADMIN = 11000;
+
     public function __construct(
         private RsaSignatureService $rsaSignatureService,
     ) {}
@@ -42,40 +45,110 @@ class BatchTagihanService
      * PENJELASAN UNTUK SIDANG:
      * Alur kerja metode batch: data yang sudah difoto dan divalidasi tidak langsung jadi nota satu per satu,
      * melainkan dikumpulkan di antrean (queue). Fungsi ini akan memproses semua antrean tersebut secara
-     * serentak dalam satu kali jalan agar server tidak timeout dan data tagihan 700 unit rapi.
+     * serentak menggunakan bulk insert per chunk agar 700 unit selesai dalam hitungan detik tanpa timeout
+     * sekaligus mencegah duplikasi tagihan pada periode yang sama.
+     *
+     * @return array{
+     *     periode: string,
+     *     already_processed: bool,
+     *     existing_bills_count: int,
+     *     processed_count: int,
+     *     new_bills_count: int,
+     *     nota_issued_count: int,
+     *     surat_generated_count: int
+     * }
      */
     public function executeBatchBilling(?string $periode = null): array
     {
-        $targetPeriode = $periode ?? now()->format('Y-m');
+        $targetPeriode = ($periode !== null && preg_match('/^\d{4}-\d{2}$/', $periode) === 1)
+            ? $periode
+            : now()->format('Y-m');
 
-        // Langkah 1: Ambil seluruh data meteran yang berstatus 'valid' tapi belum dibuatkan tagihannya
-        $bacaans = BacaanMeter::where('status_verifikasi', 'valid')
-            ->whereDoesntHave('tagihan')
-            ->get();
+        [$targetYear, $targetMonth] = array_map('intval', explode('-', $targetPeriode));
+        $periodeDate = Carbon::createFromDate($targetYear, $targetMonth, 1);
 
-        $tagihanBaru = 0;
+        // Cek unit yang sudah memiliki tagihan pada periode target (pencegahan duplikasi TC_028)
+        $billedUnitIds = Tagihan::query()
+            ->where('priode', $targetPeriode)
+            ->pluck('unit_id')
+            ->all();
+        $existingBillsCount = count($billedUnitIds);
 
-        // Langkah 2: Loop / iterasi batch untuk menghitung tagihan tiap unit secara otomatis
+        // Langkah 1: Ambil seluruh bacaan meteran 'valid' pada periode target yang belum ditagihkan
+        $bacaans = BacaanMeter::query()
+            ->where('bulan', $targetMonth)
+            ->where('tahun', $targetYear)
+            ->where('status_verifikasi', 'valid')
+            ->when(! empty($billedUnitIds), fn ($q) => $q->whereNotIn('unit_id', $billedUnitIds))
+            ->orderBy('id')
+            ->get()
+            ->unique('unit_id')
+            ->values();
+
+        if ($bacaans->isEmpty() && $existingBillsCount > 0) {
+            $suratList = $this->getDaftarSuratOtomatis();
+
+            return [
+                'periode' => $targetPeriode,
+                'already_processed' => true,
+                'existing_bills_count' => $existingBillsCount,
+                'processed_count' => 0,
+                'new_bills_count' => 0,
+                'nota_issued_count' => $existingBillsCount,
+                'surat_generated_count' => $suratList->count(),
+            ];
+        }
+
+        // Langkah 2: Susun seluruh baris tagihan dengan rumus tarif progresif + biaya beban lalu bulk insert per chunk
+        $now = now();
+        $tglTerbit = $periodeDate->copy()->startOfMonth()->toDateString();
+        $tglJatuhTempo = $periodeDate->copy()->day(20)->toDateString();
+        $rowsToInsert = [];
+
         foreach ($bacaans as $bacaan) {
-            $tagihan = $this->generateSingleTagihan($bacaan, $targetPeriode);
-            if ($tagihan?->wasRecentlyCreated) {
-                $tagihanBaru++;
-            }
+            $isStandAwal = ((float) $bacaan->angka_meter_bulanlalu <= 0);
+            $volume = $isStandAwal ? 0 : max(0, (int) $bacaan->angka_meter - (int) $bacaan->angka_meter_bulanlalu);
+            $kalkulasi = $this->hitungTagihanProgresif($volume);
+
+            $rowsToInsert[] = [
+                'unit_id' => $bacaan->unit_id,
+                'bacaan_meter_id' => $bacaan->id,
+                'tarif_id' => $kalkulasi['tarif_utama_id'],
+                'priode' => $targetPeriode,
+                'volume_pemakaian' => $kalkulasi['volume_total'],
+                'denda' => 0,
+                'biaya_admin' => $kalkulasi['biaya_admin'],
+                'jumlah_tunggakan' => 0,
+                'total_tagihan' => $kalkulasi['total_tagihan'],
+                'status_bayar' => 'belum_lunas',
+                'tgl_terbit' => $tglTerbit,
+                'tgl_jatuh_tempo' => $tglJatuhTempo,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
         }
 
-        // Langkah 3: Integrasi dengan modul Cyber Security untuk memberi Tanda Tangan RSA & QR Code pada setiap nota
-        foreach (Tagihan::all() as $tagihan) {
-            $this->rsaSignatureService->issueTagihanSignature($tagihan);
+        $tagihanBaru = count($rowsToInsert);
+
+        if ($tagihanBaru > 0) {
+            DB::transaction(function () use ($rowsToInsert) {
+                foreach (array_chunk($rowsToInsert, 250) as $chunk) {
+                    Tagihan::query()->insert($chunk);
+                }
+            });
         }
 
-        // Langkah 4: Otomatis mendeteksi warga yang menunggak >= 4 bulan untuk dibuatkan surat peringatan
+        // Langkah 3: Otomatis mendeteksi warga yang menunggak >= 4 bulan untuk dibuatkan surat peringatan
         $suratList = $this->getDaftarSuratOtomatis();
+        $totalPeriodeCount = Tagihan::query()->where('priode', $targetPeriode)->count();
 
         return [
             'periode' => $targetPeriode,
+            'already_processed' => false,
+            'existing_bills_count' => $existingBillsCount,
             'processed_count' => $bacaans->count(),
             'new_bills_count' => $tagihanBaru,
-            'nota_issued_count' => Tagihan::count(),
+            'nota_issued_count' => $totalPeriodeCount,
             'surat_generated_count' => $suratList->count(),
         ];
     }
@@ -100,21 +173,21 @@ class BatchTagihanService
         $isStandAwal = ((float) $bacaan->angka_meter_bulanlalu <= 0);
         $volume = $isStandAwal ? 0 : max(0, (int) $bacaan->angka_meter - (int) $bacaan->angka_meter_bulanlalu);
 
-        // Hitung nominal menggunakan rumus tarif progresif bertingkat
+        // Hitung nominal menggunakan rumus tarif progresif bertingkat + biaya beban
         $kalkulasi = $this->hitungTagihanProgresif($volume);
 
-        // Status awal: Unit 1-407 berstatus lunas (data historis perumahan), sisanya belum lunas
-        $statusBayar = ($bacaan->unit_id <= 407) ? 'lunas' : 'belum_lunas';
-
-        // Simpan data tagihan resmi ke database
+        // Simpan data tagihan resmi ke database dengan status awal belum_lunas
         $tagihan = Tagihan::create([
             'unit_id' => $bacaan->unit_id,
             'bacaan_meter_id' => $bacaan->id,
             'tarif_id' => $kalkulasi['tarif_utama_id'],
             'priode' => $targetPeriode,
             'volume_pemakaian' => $kalkulasi['volume_total'],
+            'denda' => 0,
+            'biaya_admin' => $kalkulasi['biaya_admin'],
+            'jumlah_tunggakan' => 0,
             'total_tagihan' => $kalkulasi['total_tagihan'],
-            'status_bayar' => $statusBayar,
+            'status_bayar' => 'belum_lunas',
             'tgl_terbit' => now()->startOfMonth(),
             'tgl_jatuh_tempo' => now()->addDays(20),
         ]);
@@ -130,13 +203,14 @@ class BatchTagihanService
     // ========================================================================
 
     /**
-     * FUNGSI: Menghitung total biaya air berdasarkan rumus tarif progresif bertingkat.
+     * FUNGSI: Menghitung total biaya air berdasarkan rumus tarif progresif bertingkat + biaya beban.
      * PENJELASAN UNTUK SIDANG:
-     * Tarif air tidak dihitung dengan tarif flat/tetap, melainkan bertingkat (progresif) sesuai Permendagri:
-     * - Blok 1 (0 s/d 10 m³)   : Rp 2.000 per m³ (Kebutuhan Dasar)
-     * - Blok 2 (11 s/d 20 m³)  : Rp 3.000 per m³ (Kebutuhan Menengah)
+     * Tarif air dihitung bertingkat (progresif) sesuai Permendagri + biaya beban tetap Rp 11.000:
+     * - Blok 1 (0 s/d 10 m³)    : Rp 2.000 per m³ (Kebutuhan Dasar)
+     * - Blok 2 (11 s/d 20 m³)   : Rp 3.000 per m³ (Kebutuhan Menengah)
      * - Blok 3 (Lebih dari 20 m³): Rp 5.000 per m³ (Konsumsi Tinggi)
-     * Contoh jika pemakaian 25 m³: (10 * 2.000) + (10 * 3.000) + (5 * 5.000) = Rp 75.000.
+     * - Biaya Beban / Admin     : Rp 11.000
+     * Contoh pemakaian 14 m³: (10 × 2.000) + (4 × 3.000) + 11.000 = Rp 43.000.
      */
     public function hitungTagihanProgresif(int|float $volumePemakaian): array
     {
@@ -152,11 +226,16 @@ class BatchTagihanService
         $volBlok3 = max(0, $volume - 20);
         $subtotal3 = $volBlok3 * 5000.0;
 
-        // Total akumulasi tagihan dari seluruh blok
-        $totalTagihan = $subtotal1 + $subtotal2 + $subtotal3;
+        $hargaAir = $subtotal1 + $subtotal2 + $subtotal3;
+        $biayaAdmin = (float) self::BIAYA_BEBAN_ADMIN;
+
+        // Total akumulasi tagihan dari seluruh blok + biaya beban/admin
+        $totalTagihan = $hargaAir + $biayaAdmin;
 
         return [
             'volume_total' => $volume,
+            'harga_air' => $hargaAir,
+            'biaya_admin' => $biayaAdmin,
             'total_tagihan' => $totalTagihan,
             'tarif_utama_id' => 1,
             'rincian_blok' => [
@@ -199,7 +278,9 @@ class BatchTagihanService
         $unit = UnitHunian::with('blok')->find($unitId);
         $tagihans = Tagihan::where('unit_id', $unitId)->where('status_bayar', '!=', 'lunas')->orderBy('priode', 'asc')->get();
 
-        return ($unit && $tagihans->isNotEmpty()) ? $this->buildSuratPayload($unit, $tagihans) : null;
+        return ($unit && $tagihans->count() >= self::MIN_BULAN_TUNGGAKAN)
+            ? $this->buildSuratPayload($unit, $tagihans)
+            : null;
     }
 
     /**
@@ -231,8 +312,8 @@ class BatchTagihanService
         $grandTotal = $totalPokok + $totalDenda;
 
         // Penomoran resmi surat developer: No. [ID]/J-DEV/GS/[Romawi Bulan]/[Tahun]
-        $romawi = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][$now->month - 1] ?? 'XI';
-        $nomorSurat = "No. " . (490 + (int) $unit->id) . "/J-DEV/GS/{$romawi}/{$now->year}";
+        $romawi = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][$now->month - 1] ?? 'XI';
+        $nomorSurat = 'No. '.(490 + (int) $unit->id)."/J-DEV/GS/{$romawi}/{$now->year}";
 
         $periodeAwal = Carbon::parse($tagihans->first()->priode ?? $now)->translatedFormat('F');
         $periodeAkhir = Carbon::parse($tagihans->last()->priode ?? $now)->translatedFormat('F Y');

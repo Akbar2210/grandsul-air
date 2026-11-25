@@ -21,17 +21,18 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <button onclick="window.print()" class="px-4 py-2 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs">
+            <button onclick="window.print()" class="px-4 py-2 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] hover:bg-white text-[#0F172A] text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                     <path d="M6 9V2h12v7"></path>
                     <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"></path>
                     <rect x="6" y="14" width="12" height="8"></rect>
                 </svg>
-                <span>Cetak Laporan</span>
+                <span>Cetak Layar</span>
             </button>
-            <a href="{{ route('admin.laporan.pdf', request()->query()) }}" target="_blank" class="px-4 py-2 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] hover:bg-white text-[#0F172A] text-xs font-bold transition-colors flex items-center gap-2 shadow-xs">
-                <svg class="w-4 h-4 text-[#2563EB]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                <span>Ekspor PDF</span>
+            <a href="{{ route('admin.laporan.pdf', ['bulan' => $selectedBulan, 'tahun' => $selectedTahun, 'blok' => $selectedBlok, 'status' => $selectedStatus]) }}"
+               class="px-4 py-2 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-xs">
+                <svg class="w-4 h-4 text-[#00F2FE]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                <span>Cetak PDF</span>
             </a>
         </div>
     </div>
@@ -49,25 +50,43 @@
                 </div>
             @else
                 <div>
-                    <label class="text-[11px] font-bold text-[#64748B] block mb-1">Periode Laporan</label>
-                    <select name="bulan" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
-                        <option value="11" selected>November 2026</option>
-                        <option value="10">Oktober 2026</option>
-                        <option value="09">September 2026</option>
-                        <option value="08">Agustus 2026</option>
+                    <label for="bulan" class="text-[11px] font-bold text-[#64748B] block mb-1">Bulan</label>
+                    <select id="bulan" name="bulan" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
+                        @foreach($bulanNames ?? [] as $num => $namaBulan)
+                            <option value="{{ $num }}" {{ (int) ($selectedBulan ?? now()->month) === (int) $num ? 'selected' : '' }}>
+                                {{ $namaBulan }}
+                            </option>
+                        @endforeach
                     </select>
+                </div>
+
+                <div>
+                    <label for="tahun" class="text-[11px] font-bold text-[#64748B] block mb-1">Tahun</label>
+                    <input id="tahun" type="number" name="tahun" min="2020" max="2099" value="{{ $selectedTahun ?? now()->year }}"
+                           class="w-24 px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-mono font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
                 </div>
             @endif
 
             <div>
-                <label class="text-[11px] font-bold text-[#64748B] block mb-1">Blok Hunian</label>
-                <select name="blok" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
-                    <option value="">Semua Blok (A – F)</option>
+                <label for="blok" class="text-[11px] font-bold text-[#64748B] block mb-1">Blok</label>
+                <select id="blok" name="blok" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
+                    <option value="">Semua blok</option>
                     @foreach($bloks as $b)
-                    <option value="{{ $b->id }}" {{ request('blok') == $b->id ? 'selected' : '' }}>{{ $b->nama_blok }}</option>
+                    <option value="{{ $b->id }}" {{ (string) ($selectedBlok ?? '') === (string) $b->id ? 'selected' : '' }}>{{ $b->nama_blok }}</option>
                     @endforeach
                 </select>
             </div>
+
+            @if($mode !== 'harian')
+                <div>
+                    <label for="status" class="text-[11px] font-bold text-[#64748B] block mb-1">Status</label>
+                    <select id="status" name="status" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
+                        <option value="" {{ ($selectedStatus ?? '') === '' ? 'selected' : '' }}>Semua</option>
+                        <option value="lunas" {{ ($selectedStatus ?? '') === 'lunas' ? 'selected' : '' }}>Lunas</option>
+                        <option value="belum_lunas" {{ ($selectedStatus ?? '') === 'belum_lunas' ? 'selected' : '' }}>Belum Lunas</option>
+                    </select>
+                </div>
+            @endif
 
             <button type="submit" class="py-2 px-5 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.98] text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer">
                 Terapkan Filter
@@ -313,6 +332,13 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-[#F1F5F9]">
+                        @if(($transaksiCount ?? 0) === 0)
+                            <tr>
+                                <td colspan="8" class="py-10 text-center text-xs font-semibold text-[#64748B]">
+                                    Tidak ada data transaksi pada periode terpilih ({{ $periodeStr }}).
+                                </td>
+                            </tr>
+                        @else
                         @foreach($rekapBlok as $b)
                         @php
                             $blokEff = $b['total_tagihan'] > 0 ? round(($b['terbayar'] / $b['total_tagihan']) * 100, 1) : 0;
@@ -352,6 +378,7 @@
                             </td>
                         </tr>
                         @endforeach
+                        @endif
                     </tbody>
                     <tfoot>
                         <tr class="bg-[#F8FAFC] border-t-2 border-[#0F172A] text-xs font-bold text-[#0F172A]">

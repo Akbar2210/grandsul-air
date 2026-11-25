@@ -92,14 +92,13 @@
                         </td>
                         <td class="py-3.5 px-5 text-right whitespace-nowrap">
                             <a href="{{ route('admin.surat-tunggakan.cetak', $s['unit_id']) }}"
-                               target="_blank"
                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white font-normal text-[11px] transition-colors shadow-xs">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                                     <path d="M6 9V2h12v7"></path>
                                     <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"></path>
                                     <rect x="6" y="14" width="12" height="8"></rect>
                                 </svg>
-                                <span>Lihat & Cetak Surat</span>
+                                <span>Cetak Surat (PDF)</span>
                             </a>
                         </td>
                     </tr>

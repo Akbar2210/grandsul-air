@@ -14,6 +14,11 @@ class Notifikasi extends Model
         'is_read' => 'boolean',
     ];
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function unit()
     {
         return $this->belongsTo(UnitHunian::class, 'unit_id');
