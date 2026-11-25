@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,47 +6,68 @@
 
 @layer base {
     :root {
-        /* 60-30-10 Brand Tokens (Refined Slate & Royal Blue Palette) */
-        --color-ice-white: #F8FAFC;
-        --color-navy: #0B1120;
-        --color-cyan: #2563EB;
+        /* 60-30-10 Brand Tokens (Refined Soft Canvas & Navy Palette) */
+        --color-ice-white: #f1f5f9;
+        --color-navy: #0b1e3d;
+        --color-cyan: #2563eb;
 
         /* Turunan Navy / Slate */
-        --color-navy-700: #0F172A;
-        --color-navy-600: #1E293B;
-        --color-navy-400: #64748B;
-        --color-navy-200: #CBD5E1;
+        --color-navy-700: #0b1e3d;
+        --color-navy-600: #142a50;
+        --color-navy-400: #64748b;
+        --color-navy-200: #cbd5e1;
 
         /* Turunan Accent */
-        --color-cyan-600: #1D4ED8;
-        --color-cyan-100: #DBEAFE;
+        --color-cyan-600: #1d4ed8;
+        --color-cyan-100: #dbeafe;
         --color-cyan-glow: rgba(37, 99, 235, 0.2);
 
         /* Surface */
-        --surface-page: #F8FAFC;
-        --surface-card: #FFFFFF;
-        --surface-sidebar: #0B1120;
+        --surface-page: #f1f5f9;
+        --surface-card: #ffffff;
+        --surface-sidebar: #0b1e3d;
 
         /* Text */
-        --text-heading: #0F172A;
-        --text-body: #1E293B;
-        --text-muted: #64748B;
+        --text-heading: #0f172a;
+        --text-body: #1e293b;
+        --text-muted: #64748b;
 
-        /* Radius (Sharp Kotak Architecture) */
-        --radius-sm: 0px;
-        --radius-md: 0px;
-        --radius-lg: 0px;
-        --radius-xl: 0px;
+        /* Radius Tokens */
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --radius-xl: 16px;
 
         /* Shadows */
-        --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.03);
-        --shadow-lift: 0 14px 28px -6px rgba(15, 23, 42, 0.08), 0 6px 14px -3px rgba(15, 23, 42, 0.04);
+        --shadow-card:
+            0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.05);
+        --shadow-lift:
+            0 12px 24px -4px rgba(15, 23, 42, 0.12),
+            0 4px 10px -2px rgba(15, 23, 42, 0.06);
+    }
+
+    html,
+    body {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        overflow-x: hidden;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
     }
 
     body {
         background-color: var(--surface-page);
         color: var(--text-body);
-        font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+        font-family:
+            "Poppins",
+            system-ui,
+            -apple-system,
+            sans-serif;
     }
 }
 
@@ -57,7 +78,9 @@
 
     /* ===== LIFTING ANIMATION ===== */
     .card-lift {
-        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transition:
+            transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+            box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         will-change: transform, box-shadow;
     }
 
@@ -68,16 +91,16 @@
 
     /* ===== STAT CARD ===== */
     .stat-card-modern {
-        background: #FFFFFF;
-        border-radius: 0px;
-        border: 1px solid #CBD5E1;
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
         padding: 20px 22px;
         box-shadow: var(--shadow-card);
     }
 
     /* ===== SIDEBAR ===== */
     .sidebar-modern {
-        background-color: #0B1120;
+        background-color: #0b1e3d;
         width: 250px;
         display: flex;
         flex-direction: column;
@@ -90,61 +113,86 @@
         gap: 12px;
         height: 42px;
         padding: 0 14px;
-        border-radius: 0px;
-        color: #94A3B8;
+        border-radius: 10px;
+        color: #94a3b8;
         font-size: 13.5px;
         font-weight: 500;
-        transition: all 0.18s ease;
+        transition:
+            background-color 0.15s ease,
+            color 0.15s ease,
+            box-shadow 0.15s ease;
         text-decoration: none;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .menu-item-modern * {
+        pointer-events: none;
     }
 
     .menu-item-modern:hover {
-        background-color: #1E293B;
-        color: #FFFFFF;
+        background-color: #142a50;
+        color: #ffffff;
+    }
+
+    .menu-item-modern:active {
+        background-color: #1a3668;
+        color: #ffffff;
     }
 
     .menu-item-modern.active {
-        background-color: #2563EB;
-        color: #FFFFFF;
+        background-color: #2563eb;
+        color: #ffffff;
         font-weight: 600;
-        box-shadow: none;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
     }
 
     .menu-item-modern.active svg {
-        color: #FFFFFF;
+        color: #ffffff;
     }
 
-    /* ===== STATUS BADGES (SHARP RECTANGULAR KOTAK) ===== */
+    /* ===== STATUS BADGES ===== */
     .badge-modern {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 3px 9px;
-        border-radius: 0px;
+        padding: 3px 10px;
+        border-radius: 6px;
         font-size: 11px;
         font-weight: 600;
         line-height: 1.3;
-        background-color: #F8FAFC;
-        color: #0F172A;
-        border: 1px solid #CBD5E1;
+        border: 1px solid transparent;
+        text-decoration: none;
     }
 
-    /* Enforce sharp rectangular (kotak) style on all cards, panels, boxes, inputs, buttons, and badges */
-    .rounded-xs,
-    .rounded-sm,
-    .rounded,
-    .rounded-md,
-    .rounded-lg,
-    .rounded-xl,
-    .rounded-2xl,
-    .rounded-3xl {
-        border-radius: 0px !important;
+    .badge-paid {
+        background-color: #16a34a;
+        color: #ffffff;
+        border-color: #15803d;
+        font-weight: 700;
+    }
+    .badge-pending {
+        background-color: #eff6ff;
+        color: #1d4ed8;
+        border-color: #93c5fd;
+        font-weight: 700;
+    }
+    .badge-overdue {
+        background-color: #fef2f2;
+        color: #b91c1c;
+        border-color: #fca5a5;
+        font-weight: 700;
+    }
+    .badge-neutral {
+        background-color: #f1f5f9;
+        color: #475569;
+        border-color: #e2e8f0;
     }
 
-    .badge-paid { border-left: 3px solid #16A34A; }
-    .badge-pending { border-left: 3px solid #D97706; }
-    .badge-overdue { border-left: 3px solid #DC2626; }
-    .badge-neutral { border-left: 3px solid #64748B; }
+    /* Mencegah teks select bertabrakan dengan panah/dropdown icon */
+    select {
+        padding-right: 2.5rem !important;
+    }
 
     /* ===== DATA TABLE ===== */
     .table-modern {
@@ -157,17 +205,16 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #475569;
+        color: #0f172a;
         padding: 12px 18px;
-        text-align: left;
-        border-bottom: 1px solid #E2E8F0;
+        border-bottom: 1px solid #cbd5e1;
     }
 
     .table-modern td {
         font-size: 13.5px;
-        color: #1E293B;
+        color: #1e293b;
         padding: 14px 18px;
-        border-bottom: 1px solid #F8FAFC;
+        border-bottom: 1px solid #f8fafc;
     }
 
     .table-modern tbody tr {
@@ -175,7 +222,7 @@
     }
 
     .table-modern tbody tr:hover {
-        background-color: #F8FAFC;
+        background-color: #f8fafc;
     }
 
     /* ===== AUTH CARD & BRAND ===== */
@@ -184,7 +231,7 @@
         display: grid;
         place-items: center;
         padding: 24px;
-        background: #F8FAFC;
+        background: #f8fafc;
     }
 
     .auth-card {
@@ -195,13 +242,13 @@
         min-height: 520px;
         border-radius: 12px;
         overflow: hidden;
-        background: #FFFFFF;
+        background: #ffffff;
         box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-        border: 1px solid #E2E8F0;
+        border: 1px solid #e2e8f0;
     }
 
     .auth-brand {
-        background: #0B1120;
+        background: #0b1e3d;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -212,7 +259,7 @@
     }
 
     .auth-form-panel {
-        background: #FFFFFF;
+        background: #ffffff;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -221,16 +268,57 @@
 
     /* ===== ANIMASI ENTRANCE GRAFIK & STATISTIK ===== */
     @keyframes donutSweepNavy {
-        0% { stroke-dashoffset: 238.76; }
-        100% { stroke-dashoffset: 100; }
+        0% {
+            stroke-dashoffset: 238.76;
+        }
+        100% {
+            stroke-dashoffset: 100;
+        }
     }
     @keyframes donutSweepBlue {
-        0% { stroke-dashoffset: 238.76; }
-        100% { stroke-dashoffset: 170; }
+        0% {
+            stroke-dashoffset: 238.76;
+        }
+        100% {
+            stroke-dashoffset: 170;
+        }
     }
     @keyframes donutSweepGray {
-        0% { stroke-dashoffset: 238.76; }
-        100% { stroke-dashoffset: 215; }
+        0% {
+            stroke-dashoffset: 238.76;
+        }
+        100% {
+            stroke-dashoffset: 215;
+        }
+    }
+
+    @keyframes donutArcSweep {
+        0% {
+            stroke-dashoffset: 100;
+        }
+        100% {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes donutSepFade {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    .donut-arc-sweep {
+        stroke-dasharray: 100;
+        stroke-dashoffset: 100;
+        animation: donutArcSweep 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+    }
+
+    .donut-sep-in {
+        opacity: 0;
+        animation: donutSepFade 0.15s ease-out forwards;
     }
 
     .animate-donut-navy {
@@ -241,30 +329,55 @@
     .animate-donut-blue {
         stroke-dasharray: 238.76;
         stroke-dashoffset: 238.76;
-        animation: donutSweepBlue 1.0s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+        animation: donutSweepBlue 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s
+            forwards;
     }
     .animate-donut-gray {
         stroke-dasharray: 238.76;
         stroke-dashoffset: 238.76;
-        animation: donutSweepGray 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+        animation: donutSweepGray 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s
+            forwards;
     }
 
     @keyframes drawSplinePath {
-        0% { stroke-dashoffset: 1000; }
-        100% { stroke-dashoffset: 0; }
+        0% {
+            stroke-dashoffset: 1000;
+        }
+        100% {
+            stroke-dashoffset: 0;
+        }
     }
     @keyframes splineAreaFade {
-        0% { opacity: 0; }
-        100% { opacity: 1; }
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
     }
     @keyframes nodePop {
-        0% { opacity: 0; transform: scale(0); }
-        70% { opacity: 1; transform: scale(1.4); }
-        100% { opacity: 1; transform: scale(1); }
+        0% {
+            opacity: 0;
+            transform: scale(0);
+        }
+        70% {
+            opacity: 1;
+            transform: scale(1.4);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
     @keyframes tooltipPop {
-        0% { opacity: 0; transform: translateY(8px) scale(0.85); }
-        100% { opacity: 1; transform: translateY(0) scale(1); }
+        0% {
+            opacity: 0;
+            transform: translateY(8px) scale(0.85);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
     }
 
     .spline-line-draw {
@@ -299,4 +412,113 @@
     .auth-logo-mobile {
         display: flex !important;
     }
+}
+
+/* ==================== PERPINDAHAN FITUR: ANIMASI DISSOLVE / CROSS-FADE ==================== */
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root) {
+    animation: 220ms cubic-bezier(0.4, 0, 0.2, 1) both dissolve-out;
+}
+
+::view-transition-new(root) {
+    animation: 380ms cubic-bezier(0.16, 1, 0.3, 1) both dissolve-in;
+}
+
+/* Sidebar & Topbar tetap solid dan stabil selama perpindahan fitur (tidak ikut dissolve) */
+#app-sidebar {
+    view-transition-name: app-sidebar;
+}
+
+#app-topbar {
+    view-transition-name: app-topbar;
+}
+
+#master-metrics {
+    view-transition-name: master-metrics;
+}
+
+#master-tabs {
+    view-transition-name: master-tabs;
+}
+
+#master-tab-panel {
+    view-transition-name: master-tab-panel;
+}
+
+@keyframes tabSlideUpOut {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes tabSlideUpIn {
+    0% {
+        opacity: 0;
+        transform: translateY(26px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+::view-transition-old(master-tab-panel) {
+    animation: 160ms cubic-bezier(0.4, 0, 1, 1) both tabSlideUpOut;
+}
+
+::view-transition-new(master-tab-panel) {
+    animation: 380ms cubic-bezier(0.16, 1, 0.3, 1) both tabSlideUpIn;
+}
+
+.tab-slide-up {
+    animation: tabSlideUpIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes dissolve-out {
+    0% {
+        opacity: 1;
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 0;
+        filter: blur(1.5px);
+    }
+}
+
+@keyframes dissolve-in {
+    0% {
+        opacity: 0;
+        transform: translateY(6px);
+        filter: blur(1.5px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0px);
+    }
+}
+
+/* Animasi Dissolve Universal untuk Konten Halaman (<main>) */
+@keyframes contentDissolveIn {
+    0% {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.content-dissolve {
+    animation: contentDissolveIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: opacity, transform;
 }

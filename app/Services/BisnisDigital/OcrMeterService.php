@@ -141,9 +141,9 @@ class OcrMeterService
     }
 
     /**
-     * Menghitung jarak koordinat GPS petugas terhadap titik pusat kawasan menggunakan rumus Haversine.
+     * Menghitung jarak koordinat GPS petugas terhadap titik unit hunian (atau pusat kawasan) menggunakan rumus Haversine.
      *
-     * @return array{is_valid: bool, distance_meters: float, message: string}
+     * @return array{is_valid: bool, is_unit_locked: bool, gps_unverified: bool, distance_meters: float, message: string}
      */
     public function validateGpsLocation(
         ?float $latPetugas,
@@ -152,20 +152,59 @@ class OcrMeterService
         ?float $lngUnit = null,
         ?float $maxRadiusMeters = null
     ): array {
-        $geofence = $this->getGeofenceConfig();
-        $targetLat = $latUnit ?? $geofence['center_lat'];
-        $targetLng = $lngUnit ?? $geofence['center_lng'];
-        $maxRadius = $maxRadiusMeters ?? $geofence['radius_meters'];
-
         if ($latPetugas === null || $lngPetugas === null) {
             return [
                 'is_valid' => false,
+                'is_unit_locked' => false,
+                'gps_unverified' => false,
                 'distance_meters' => 0.0,
                 'message' => 'Peringatan Lokasi: GPS perangkat wajib diaktifkan untuk dapat memotret meteran.',
             ];
         }
 
         $earthRadius = 6371000.0;
+        $hasUnitCoord = ($latUnit !== null && $lngUnit !== null);
+
+        if ($hasUnitCoord) {
+            // Validasi presisi unit hunian (default 50 meter)
+            $targetLat = (float) $latUnit;
+            $targetLng = (float) $lngUnit;
+            $maxRadius = $maxRadiusMeters !== null && $maxRadiusMeters > 0 ? (float) $maxRadiusMeters : 50.0;
+
+            $dLat = deg2rad($latPetugas - $targetLat);
+            $dLng = deg2rad($lngPetugas - $targetLng);
+
+            $a = sin($dLat / 2) * sin($dLat / 2)
+                + cos(deg2rad($targetLat)) * cos(deg2rad($latPetugas))
+                * sin($dLng / 2) * sin($dLng / 2);
+
+            $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+            $distance = round($earthRadius * $c, 2);
+
+            if ($distance > $maxRadius) {
+                return [
+                    'is_valid' => false,
+                    'is_unit_locked' => true,
+                    'gps_unverified' => false,
+                    'distance_meters' => $distance,
+                    'message' => "Lokasi tidak sesuai: Anda berjarak {$distance} m dari unit rumah ini (radius toleransi maksimal {$maxRadius} m). Kamera & OCR dinonaktifkan.",
+                ];
+            }
+
+            return [
+                'is_valid' => true,
+                'is_unit_locked' => true,
+                'gps_unverified' => false,
+                'distance_meters' => $distance,
+                'message' => "Lokasi GPS sesuai ({$distance} m dari unit, batas toleransi {$maxRadius} m).",
+            ];
+        }
+
+        // Jika unit belum memiliki koordinat tersimpan: tetap izinkan dengan penanda gps_unverified
+        $geofence = $this->getGeofenceConfig();
+        $targetLat = $geofence['center_lat'];
+        $targetLng = $geofence['center_lng'];
+
         $dLat = deg2rad($latPetugas - $targetLat);
         $dLng = deg2rad($lngPetugas - $targetLng);
 
@@ -176,26 +215,20 @@ class OcrMeterService
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
         $distance = round($earthRadius * $c, 2);
 
-        if ($distance > $maxRadius) {
-            return [
-                'is_valid' => false,
-                'distance_meters' => $distance,
-                'message' => "Peringatan Lokasi: Anda berada di luar radius area Perumahan Grand Sulawesi (berjarak {$distance} m dari titik pusat, batas maksimal {$maxRadius} m).",
-            ];
-        }
-
         return [
             'is_valid' => true,
+            'is_unit_locked' => false,
+            'gps_unverified' => true,
             'distance_meters' => $distance,
-            'message' => "Lokasi GPS valid di dalam kawasan ({$distance} m dari titik pusat).",
+            'message' => 'Unit belum memiliki koordinat tersimpan. Pencatatan diizinkan dengan status GPS Unverified.',
         ];
     }
 
     /**
      * Mengevaluasi aturan deteksi anomali otomatis (Exception-Based Review) sesuai SRS FR-004 & Lampiran C:
      * 1. Angka meter baru lebih kecil dari bulan lalu (meter mundur).
-     * 2. Confidence score OCR < 70%.
-     * 3. Pemakaian bernilai 0 m³ pada unit hunian aktif (Dihuni).
+     * 2. Confidence score OCR < 70% (dilewati jika petugas sudah memverifikasi/mengoreksi angka fisik).
+     * 3. Pemakaian bernilai 0 m³ pada unit hunian aktif (Dihuni) (dilewati jika pencatatan perdana).
      * 4. Lonjakan pemakaian drastis (> 200% rata-rata normal atau > 50 m³).
      *
      * @return array{status_verifikasi: string, catatan_anomali: ?string, pemakaian: float}
@@ -205,8 +238,19 @@ class OcrMeterService
         float $angkaSekarang,
         ?float $confidenceScore = null,
         string $statusHuni = 'Dihuni',
-        float $rataRataNormal = 20.0
+        float $rataRataNormal = 20.0,
+        bool $isOcrCorrected = false,
+        bool $isFirstReading = false
     ): array {
+        // Jika pencatatan perdana (stand awal / belum ada riwayat bulan lalu)
+        if ($isFirstReading || $angkaBulanLalu <= 0) {
+            return [
+                'status_verifikasi' => 'valid',
+                'catatan_anomali' => null,
+                'pemakaian' => 0.0,
+            ];
+        }
+
         $pemakaian = $angkaSekarang - $angkaBulanLalu;
 
         if ($pemakaian < 0) {
@@ -217,7 +261,8 @@ class OcrMeterService
             ];
         }
 
-        if ($confidenceScore !== null && $confidenceScore < self::MIN_OCR_CONFIDENCE) {
+        // Rule OCR confidence rendah hanya berlaku jika petugas belum memverifikasi/mengoreksi angka
+        if (! $isOcrCorrected && $confidenceScore !== null && $confidenceScore < self::MIN_OCR_CONFIDENCE) {
             return [
                 'status_verifikasi' => 'ter_flag',
                 'catatan_anomali' => "Foto miring/redup, OCR confidence rendah ({$confidenceScore}%)",

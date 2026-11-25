@@ -70,10 +70,21 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     // 7. Data Master (Unit, Tarif Progresif, Petugas, Blok)
     Route::get('/master', [AdminDashboardController::class, 'master'])->name('master');
     Route::post('/master/unit', [AdminDashboardController::class, 'storeUnit'])->name('master.unit.store');
+    Route::post('/master/unit/import', [AdminDashboardController::class, 'importUnits'])->name('master.unit.import');
+    Route::get('/master/unit/template', [AdminDashboardController::class, 'downloadUnitTemplate'])->name('master.unit.template');
+    Route::post('/master/unit/{id}', [AdminDashboardController::class, 'updateUnit'])->name('master.unit.update');
+    Route::delete('/master/unit/{id}', [AdminDashboardController::class, 'destroyUnit'])->name('master.unit.destroy');
     Route::post('/master/tarif', [AdminDashboardController::class, 'storeTarif'])->name('master.tarif.store');
+    Route::post('/master/tarif/{id}', [AdminDashboardController::class, 'updateTarif'])->name('master.tarif.update');
+    Route::delete('/master/tarif/{id}', [AdminDashboardController::class, 'destroyTarif'])->name('master.tarif.destroy');
 
     // 8. Audit Log Aktivitas
     Route::get('/audit', [AdminDashboardController::class, 'audit'])->name('audit');
+
+    // 9. Notifikasi Sistem Interaktif
+    Route::get('/notifikasi/unread-list', [AdminDashboardController::class, 'getUnreadNotifikasi'])->name('notifikasi.unread-list');
+    Route::post('/notifikasi/read-all', [AdminDashboardController::class, 'readAllNotifikasi'])->name('notifikasi.read-all');
+    Route::post('/notifikasi/{id}/read', [AdminDashboardController::class, 'readNotifikasi'])->name('notifikasi.read');
 });
 
 // Petugas Routes (Protected with RBAC role:petugas|admin untuk mendukung simulasi multi-peran)
@@ -90,5 +101,19 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+// Fallback streaming foto & berkas storage publik (terutama untuk environment Windows/local)
+Route::get('/storage/{path}', function (string $path) {
+    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+        return \Illuminate\Support\Facades\Storage::disk('public')->response($path);
+    }
+
+    $publicFile = public_path('storage/'.$path);
+    if (file_exists($publicFile)) {
+        return response()->file($publicFile);
+    }
+
+    abort(404);
+})->where('path', '.*');
 
 require __DIR__.'/auth.php';

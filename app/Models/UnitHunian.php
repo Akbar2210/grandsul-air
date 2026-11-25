@@ -8,6 +8,12 @@ class UnitHunian extends Model
 {
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'radius_toleransi' => 'integer',
+    ];
+
     public function blok()
     {
         return $this->belongsTo(BlokHunian::class, 'blok_id');

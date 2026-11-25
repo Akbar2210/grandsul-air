@@ -1,14 +1,14 @@
 @extends('layouts.admin')
 
-@section('title', 'Audit Log Aktivitas — Grand Sulawesi Air')
+@section('title', 'Audit Log Aktivitas — Pengelolaan Air Terintegrasi Grand Sulawesi')
 @section('page-title', 'Audit Log Sistem')
 @section('page-subtitle', 'Pencatatan riwayat aktivitas pengguna yang bersifat kekal (immutable ledger) untuk keamanan data')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-5">
 
     {{-- ==================== BANNER KEAMANAN & FILTER TOOLBAR ==================== --}}
-    <div class="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-xs">
+    <div class="bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-sm">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
                 <div class="flex items-center gap-2">
@@ -41,9 +41,9 @@
     </div>
 
     {{-- ==================== TABEL AUDIT LOG AKTIVITAS ==================== --}}
-    <div class="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
+    <div class="bg-white rounded-xl border border-[#CBD5E1] shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-[#F1F5F9] flex items-center justify-between">
-            <h3 class="text-xs font-bold text-[#64748B] uppercase tracking-wider">JURNAL AKTIVITAS OPERASIONAL</h3>
+            <h3 class="text-xs font-bold text-[#0F172A] uppercase tracking-wider">JURNAL AKTIVITAS OPERASIONAL</h3>
             <span class="text-xs text-[#64748B] font-mono tabular-nums">
                 Total: {{ $logs->total() }} Catatan Aktivitas
             </span>
@@ -52,7 +52,7 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead>
-                    <tr class="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[#64748B] font-bold uppercase tracking-wider text-[11px]">
+                    <tr class="bg-[#F8FAFC] border-b border-[#CBD5E1] text-[#0F172A] font-bold uppercase tracking-wider text-[11px]">
                         <th class="py-3.5 px-6">Stempel Waktu</th>
                         <th class="py-3.5 px-4">Pengguna / Aktor</th>
                         <th class="py-3.5 px-4 text-center">Peran</th>
@@ -77,7 +77,7 @@
 
                         <td class="py-3.5 px-4">
                             <div class="flex items-center gap-2.5">
-                                <div class="w-7 h-7 rounded-lg bg-[#0F172A] text-white font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
+                                <div class="w-7 h-7 rounded-full bg-[#0F172A] text-white font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
                                     {{ strtoupper(substr($log->user->name ?? 'AU', 0, 2)) }}
                                 </div>
                                 <div class="min-w-0">
@@ -100,7 +100,7 @@
                         </td>
 
                         <td class="py-3.5 px-4 font-mono text-[#64748B] text-[11px] whitespace-nowrap tabular-nums">
-                            <span class="px-2 py-0.5 rounded-md bg-[#F1F5F9] border border-[#E2E8F0]">
+                            <span class="px-2 py-0.5 rounded-md bg-[#F8FAFC] border border-[#CBD5E1]">
                                 {{ $log->ip_address ?? '127.0.0.1' }}
                             </span>
                         </td>

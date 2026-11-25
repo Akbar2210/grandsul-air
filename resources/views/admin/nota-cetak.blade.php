@@ -10,6 +10,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Rekening Air Sumur Bor #{{ $kodeNota }} — Grand Sulawesi Parepare</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('images/logo.png') }}">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
@@ -27,29 +31,57 @@
         .nota-table th,
         .nota-table td {
             border: 1px solid #334155;
-            padding: 3px 6px;
-            font-size: 11.5px;
-            line-height: 1.35;
+            padding: 2.5px 5px;
+            font-size: 11px;
+            line-height: 1.28;
         }
         .nota-table th {
             background-color: #F8FAFC;
             font-weight: 700;
             text-align: center;
         }
+
+        /* PRINT STYLES - KHUSUS CETAK 1 HALAMAN LANDSCAPE PENUH */
+        @page {
+            size: landscape;
+            margin: 5mm 8mm;
+        }
         @media print {
-            @page {
-                size: A5 landscape;
-                margin: 6mm;
-            }
-            body {
-                background: #FFFFFF !important;
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
                 padding: 0 !important;
+                background: #FFFFFF !important;
+                font-size: 10px !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
             .no-print {
                 display: none !important;
             }
+            main {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
             .nota-sheet {
+                width: 100% !important;
+                max-width: 100% !important;
                 box-shadow: none !important;
+                border: 1.5px solid #1E293B !important;
+                padding: 5mm 7mm !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+            .nota-table th,
+            .nota-table td {
+                padding: 2px 4px !important;
+                font-size: 10px !important;
+                line-height: 1.25 !important;
                 border: 1px solid #334155 !important;
             }
         }
@@ -58,7 +90,7 @@
 <body class="bg-[#E2E8F0] py-6 sm:py-8 antialiased">
 
     {{-- Top Action Bar (No Print) --}}
-    <div class="max-w-[820px] mx-auto px-4 mb-5 no-print ui-sans flex flex-col sm:flex-row items-center justify-between gap-3">
+    <div class="max-w-[960px] mx-auto px-4 mb-4 no-print ui-sans flex flex-col sm:flex-row items-center justify-between gap-3">
         <a href="{{ route('admin.tagihan') }}" class="inline-flex items-center gap-2 text-xs font-bold text-[#334155] hover:text-[#0F172A]">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
             Kembali ke Daftar Tagihan
@@ -67,12 +99,16 @@
         <div class="flex items-center gap-2.5">
             @if(! $isLunas)
                 <a href="{{ route('admin.pembayaran', ['tagihan_id' => $tagihan->id]) }}"
-                   class="px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold flex items-center gap-1.5">
+                   class="px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs">
                     <span>Catat Pembayaran Nota Ini</span>
                 </a>
             @endif
-            <button onclick="window.print()" class="px-5 py-2.5 bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold flex items-center gap-2 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.076-.673-2.684-.673-4.008 0-4.411 3.582-8 8-8s8 3.589 8 8c0 1.324-.433 2.932-.673 4.008M3 17.25h18m-15 3h12"/></svg>
+            <button onclick="window.print()" class="px-5 py-2.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="M6 9V2h12v7"></path>
+                    <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
                 <span>Cetak Nota Fisik</span>
             </button>
         </div>
@@ -111,42 +147,42 @@
     @endphp
 
     {{-- ==================== LEMBAR NOTA RESMI MITRA (PT. ARISTA JAYA - GRAND SULAWESI PAREPARE) ==================== --}}
-    <main class="max-w-[820px] mx-auto px-4">
-        <div class="nota-sheet bg-white border border-[#94A3B8] shadow-md p-6 sm:p-8">
+    <main class="max-w-[960px] mx-auto px-4">
+        <div class="nota-sheet bg-white border border-[#94A3B8] shadow-md p-5 sm:p-6">
 
             {{-- 1. KOP NOTA MITRA --}}
-            <div class="flex items-start justify-between gap-4 pb-2.5 border-b-2 border-[#1E293B]">
-                <div class="w-40 shrink-0 text-center">
-                    <svg viewBox="0 0 100 72" class="w-14 h-10 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div class="flex items-start justify-between gap-4 pb-2 border-b-2 border-[#1E293B]">
+                <div class="w-36 shrink-0 text-center">
+                    <svg viewBox="0 0 100 72" class="w-12 h-9 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M50 4L14 28V66H86V28L50 4Z" stroke="#1E293B" stroke-width="3.5" fill="none"/>
                         <text x="50" y="54" text-anchor="middle" font-family="Georgia, serif" font-size="30" font-weight="bold" fill="#1E293B">AJ</text>
                     </svg>
-                    <p class="text-[9.5px] font-bold tracking-wide text-[#0F172A] leading-tight mt-0.5">PT. ARISTA JAYA</p>
-                    <p class="text-[8px] text-[#334155] leading-tight">General Kontraktor dan Real Estate</p>
+                    <p class="text-[9px] font-bold tracking-wide text-[#0F172A] leading-tight mt-0.5">PT. ARISTA JAYA</p>
+                    <p class="text-[7.5px] text-[#334155] leading-tight">General Kontraktor & Real Estate</p>
                 </div>
 
-                <div class="flex-1 text-center pr-6">
-                    <p class="text-[12px] font-bold tracking-widest uppercase text-[#0F172A]">PERUMAHAN</p>
-                    <h1 class="text-[17px] font-extrabold tracking-wider uppercase text-[#0F172A] leading-tight">
+                <div class="flex-1 text-center pr-4">
+                    <p class="text-[11px] font-bold tracking-widest uppercase text-[#0F172A]">PERUMAHAN</p>
+                    <h1 class="text-[16px] font-extrabold tracking-wider uppercase text-[#0F172A] leading-tight">
                         GRAND SULAWESI PAREPARE
                     </h1>
-                    <p class="text-[9px] text-[#334155] mt-1 leading-snug">
+                    <p class="text-[8.5px] text-[#334155] mt-0.5 leading-snug">
                         KANTOR PUSAT : Jl. Tun Abdul Razak-Perum Bumi Aroepala Ruko 10-12 Telp/Fax 2079998-8223011 Gowa
                     </p>
-                    <p class="text-[9px] text-[#334155] leading-snug">
+                    <p class="text-[8.5px] text-[#334155] leading-snug">
                         CABANG PAREPARE : Jl. Jend. M. Yusuf/Lingkar Blok A No.12 Kel. Lompoe-Kec. Bacukiki Telp. 0421-3313537
                     </p>
                 </div>
             </div>
 
             {{-- Subjudul Rekening --}}
-            <div class="text-center py-2">
-                <p class="text-[12px] font-bold tracking-widest uppercase text-[#0F172A]">REKENING AIR SUMUR BOR</p>
-                <p class="text-[11.5px] font-bold tracking-wider uppercase text-[#0F172A]">BULAN {{ $periodeLabel }}</p>
+            <div class="text-center py-1.5">
+                <p class="text-[11.5px] font-bold tracking-widest uppercase text-[#0F172A]">REKENING AIR SUMUR BOR</p>
+                <p class="text-[11px] font-bold tracking-wider uppercase text-[#0F172A]">BULAN {{ $periodeLabel }}</p>
             </div>
 
             {{-- 2. TABEL IDENTITAS PELANGGAN --}}
-            <table class="nota-table mb-3">
+            <table class="nota-table mb-2">
                 <tr>
                     <td class="w-[15%] font-bold">No. Langg</td>
                     <td class="w-[15%] font-bold">Gol. Tarif</td>
@@ -162,9 +198,9 @@
             </table>
 
             {{-- 3. DUA TABEL BERDAMPINGAN: HARGA AIR (KIRI) & ADM DLL (KANAN) --}}
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-3">
+            <div class="flex flex-row gap-3 mb-2 w-full">
                 {{-- Kiri: Harga Satuan & Pemakaian --}}
-                <div class="md:col-span-7">
+                <div class="w-[58%]">
                     <table class="nota-table">
                         <thead>
                             <tr>
@@ -201,7 +237,7 @@
                 </div>
 
                 {{-- Kanan: ADM dll. --}}
-                <div class="md:col-span-5">
+                <div class="w-[42%]">
                     <table class="nota-table">
                         <thead>
                             <tr>
@@ -231,10 +267,10 @@
             </div>
 
             {{-- 4. BAGIAN BAWAH: STAND METER + TTD ADMIN (KIRI), QR VERIFIKASI RSA-2048 (TENGAH), TOTAL BAYAR (KANAN) --}}
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-1">
+            <div class="flex flex-row gap-3 items-start pt-1 w-full">
 
                 {{-- Kolom Kiri: Stand Meter & Tanda Tangan Admin --}}
-                <div class="md:col-span-4 space-y-3">
+                <div class="w-[32%] space-y-1.5">
                     <table class="nota-table text-center">
                         <thead>
                             <tr>
@@ -252,32 +288,32 @@
                         </tbody>
                     </table>
 
-                    <div class="pt-1 text-center text-[11px] leading-relaxed">
+                    <div class="pt-1 text-center text-[10px] leading-snug">
                         <p>Ttd.</p>
-                        <div class="h-10"></div>
+                        <div class="h-6"></div>
                         <p class="font-bold underline">Admin</p>
                         <p>PT. Arista Jaya</p>
                     </div>
                 </div>
 
                 {{-- Kolom Tengah: PENEMPATAN QR CODE VERIFIKASI KRIPTOGRAFIS RSA-2048 --}}
-                <div class="md:col-span-3 flex flex-col items-center justify-center text-center border border-[#334155] p-2 bg-[#F8FAFC]">
-                    <span class="text-[8.5px] font-bold uppercase tracking-wider text-[#0F172A] mb-1">
+                <div class="w-[26%] flex flex-col items-center justify-center text-center border border-[#334155] p-1.5 bg-[#F8FAFC]">
+                    <span class="text-[8px] font-bold uppercase tracking-wider text-[#0F172A] mb-0.5">
                         VERIFIKASI QR RSA-2048
                     </span>
-                    <div class="w-24 h-24 bg-white p-1 border border-[#CBD5E1] [&>svg]:w-full [&>svg]:h-full">
+                    <div class="w-20 h-20 bg-white p-1 border border-[#CBD5E1] [&>svg]:w-full [&>svg]:h-full">
                         {!! $qrSvg !!}
                     </div>
-                    <span class="text-[8px] font-bold text-[#0F172A] mt-1">
+                    <span class="text-[7.5px] font-bold text-[#0F172A] mt-1">
                         {{ $isLunas ? 'LUNAS' : 'TAGIHAN RESMI' }} • {{ $kodeNota }}
                     </span>
-                    <span class="text-[7.5px] text-[#475569] break-all leading-tight mt-0.5">
+                    <span class="text-[7px] text-[#475569] break-all leading-tight mt-0.5">
                         SHA256: {{ substr($hashSha256, 0, 14) }}...
                     </span>
                 </div>
 
                 {{-- Kolom Kanan: Ringkasan Total Bayar & Denda --}}
-                <div class="md:col-span-5 space-y-2">
+                <div class="w-[42%] space-y-1.5">
                     <table class="nota-table">
                         <thead>
                             <tr>
@@ -298,13 +334,13 @@
                             </tr>
                             <tr class="font-bold bg-[#F8FAFC]">
                                 <td colspan="2">TOTAL BAYAR</td>
-                                <td class="text-right text-[12.5px]">Rp {{ number_format($totalBayar, 0, ',', '.') }}</td>
+                                <td class="text-right text-[12px]">Rp {{ number_format($totalBayar, 0, ',', '.') }}</td>
                             </tr>
                         </tbody>
                     </table>
 
-                    <div class="text-[9.5px] text-[#334155] flex items-center justify-between pt-1">
-                        <span>Status: <strong>{{ $isLunas ? 'LUNAS (' . ($pembayaran->metode_bayar ?? 'Tunai') . ')' : 'BELUM DIBAYAR (NOTA TAGIHAN)' }}</strong></span>
+                    <div class="text-[9px] text-[#334155] flex items-center justify-between pt-0.5">
+                        <span>Status: <strong>{{ $isLunas ? 'LUNAS (' . ($pembayaran->metode_bayar ?? 'Tunai') . ')' : 'BELUM DIBAYAR' }}</strong></span>
                         <span>Jatuh Tempo: <strong>{{ \Carbon\Carbon::parse($tagihan->tgl_jatuh_tempo)->format('d/m/Y') }}</strong></span>
                     </div>
                 </div>

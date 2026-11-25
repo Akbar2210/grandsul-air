@@ -4,7 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Admin — Grand Sulawesi Air')</title>
+    <title>@yield('title', 'Pengelolaan Air Terintegrasi Grand Sulawesi')</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('images/logo.png') }}">
 
     <!-- Google Fonts: Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,12 +23,12 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* Primary CTA Button (Sharp Kotak Architecture) */
+        /* Primary CTA Button */
         .btn-cyan-cta {
             background-color: #2563EB;
             color: #FFFFFF;
-            font-weight: 700;
-            border-radius: 0px;
+            font-weight: 400;
+            border-radius: 10px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-cyan-cta:hover:not(:disabled) {
@@ -43,9 +47,155 @@
             transform: none;
         }
     </style>
+    <script>
+        function notificationDropdown(initial) {
+            return {
+                open: false,
+                notifications: initial || [],
+                pendingSound: false,
+                get unreadCount() {
+                    return this.notifications.filter(function(n) { return !!n.unread; }).length;
+                },
+                get hasUnread() {
+                    return this.unreadCount > 0;
+                },
+                init() {
+                    const initialIds = this.notifications.map(function(n) { return n.id; });
+                    const lastKnownMaxId = parseInt(sessionStorage.getItem('last_notif_id') || '0', 10);
+                    const currentMaxId = initialIds.length > 0 ? Math.max.apply(null, initialIds) : 0;
+
+                    if (currentMaxId > lastKnownMaxId && this.unreadCount > 0) {
+                        sessionStorage.setItem('last_notif_id', currentMaxId.toString());
+                        setTimeout(() => {
+                            this.playNotificationSound();
+                        }, 400);
+                    } else if (currentMaxId > 0 && !sessionStorage.getItem('last_notif_id')) {
+                        sessionStorage.setItem('last_notif_id', currentMaxId.toString());
+                    }
+
+                    // Unlock audio jika browser membatasi autoplay sampai user berinteraksi
+                    const unlockAudio = () => {
+                        if (this.pendingSound) {
+                            this.pendingSound = false;
+                            this.playNotificationSound();
+                        }
+                    };
+                    window.addEventListener('click', unlockAudio, { once: true, passive: true });
+                    window.addEventListener('keydown', unlockAudio, { once: true, passive: true });
+
+                    // Polling background setiap 15 detik untuk deteksi notifikasi baru secara real-time
+                    setInterval(() => {
+                        this.checkNewNotifications();
+                    }, 15000);
+                },
+                playNotificationSound() {
+                    try {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        if (!AudioContext) return;
+                        if (!window._appAudioCtx) {
+                            window._appAudioCtx = new AudioContext();
+                        }
+                        const ctx = window._appAudioCtx;
+                        if (ctx.state === 'suspended') {
+                            ctx.resume().catch(() => {
+                                this.pendingSound = true;
+                            });
+                        }
+
+                        const now = ctx.currentTime;
+                        const playTone = (freq, start, duration, vol) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, now + start);
+
+                            gain.gain.setValueAtTime(0.0001, now + start);
+                            gain.gain.exponentialRampToValueAtTime(vol, now + start + 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(now + start);
+                            osc.stop(now + start + duration);
+                        };
+
+                        // Nada lonceng jernih & harmonis (G5 784Hz -> C6 1046.5Hz)
+                        playTone(783.99, 0.0, 0.35, 0.15);
+                        playTone(1046.50, 0.12, 0.45, 0.18);
+                    } catch (e) {
+                        this.pendingSound = true;
+                    }
+                },
+                async checkNewNotifications() {
+                    try {
+                        const res = await fetch('{{ route('admin.notifikasi.unread-list') }}', {
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        if (data && Array.isArray(data.notifications)) {
+                            const knownIds = this.notifications.map(function(n) { return n.id; });
+                            const hasNew = data.notifications.some(function(n) { return !knownIds.includes(n.id); });
+                            if (hasNew && data.notifications.length > 0) {
+                                this.playNotificationSound();
+                                this.notifications = data.notifications;
+                                const maxId = Math.max.apply(null, data.notifications.map(function(n) { return n.id; }));
+                                sessionStorage.setItem('last_notif_id', maxId.toString());
+                            }
+                        }
+                    } catch (e) {}
+                },
+                toggleDropdown() {
+                    if (this.open) {
+                        this.closeDropdown();
+                    } else {
+                        this.open = true;
+                    }
+                },
+                closeDropdown() {
+                    this.open = false;
+                    // Otomatis hilangkan notifikasi yang sudah dibaca saat ditutup agar tidak menumpuk
+                    this.notifications = this.notifications.filter(function(n) {
+                        return !!n.unread;
+                    });
+                },
+                async markAllAsRead() {
+                    this.notifications.forEach(function(n) { n.unread = false; });
+                    try {
+                        await fetch('{{ route('admin.notifikasi.read-all') }}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            }
+                        });
+                    } catch (e) {
+                        console.error(e);
+                    }
+                },
+                async readNotif(item) {
+                    item.unread = false;
+                    try {
+                        fetch('/admin/notifikasi/' + item.id + '/read', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            }
+                        });
+                    } catch (e) {}
+                    if (item.link) {
+                        window.location.href = item.link;
+                    }
+                }
+            };
+        }
+    </script>
     @stack('styles')
 </head>
-<body class="bg-[#F8FAFC] font-sans text-[#1E293B] antialiased" x-data="{ sidebarOpen: false }">
+<body class="bg-[#F1F5F9] font-sans text-[#1E293B] antialiased" x-data="{ sidebarOpen: false }">
 
     {{-- Mobile Overlay Drawer --}}
     <div
@@ -57,36 +207,37 @@
         x-transition:leave="transition-opacity ease-linear duration-200"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        class="fixed inset-0 bg-[#0B1120]/50 backdrop-blur-xs z-40 lg:hidden"
+        class="fixed inset-0 bg-[#0B1E3D]/50 backdrop-blur-xs z-40 lg:hidden"
         style="display: none;"
     ></div>
 
     <div class="min-h-screen flex">
-        {{-- ==================== SIDEBAR KIRI (NAVY SLEEK #0B1120) ==================== --}}
+        {{-- ==================== SIDEBAR KIRI (BIRU NAVY #0B1E3D) ==================== --}}
         <aside
-            class="fixed inset-y-0 left-0 z-50 w-[250px] bg-[#0B1120] flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0"
+            id="app-sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-[250px] bg-[#0B1E3D] border-r border-[#18325B] flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
         >
             <div>
                 {{-- Brand Header --}}
-                <div class="h-20 px-6 flex items-center justify-between border-b border-[#1E293B]">
+                <div class="h-20 px-3 flex items-center justify-center relative border-b border-[#18325B]">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-[#1E293B] flex items-center justify-center p-2 shadow-xs">
-                            <x-brand-logo class="w-full h-full object-contain" />
+                        <div class="w-[58px] h-[58px] flex items-center justify-center shrink-0">
+                            <x-brand-logo class="w-full h-full object-contain scale-105" />
                         </div>
-                        <div>
-                            <span class="text-sm font-bold text-white tracking-wide block leading-none">GRAND SULAWESI</span>
-                            <span class="text-[11px] text-[#64748B] font-medium tracking-tight mt-1 block">Pengelolaan Air</span>
+                        <div class="text-left">
+                            <span class="text-[12.5px] font-extrabold text-white tracking-wider uppercase block leading-tight whitespace-nowrap">GRAND SULAWESI</span>
+                            <span class="text-[10px] text-[#93C5FD] font-semibold tracking-wide block mt-1 whitespace-nowrap">Pengelolaan Air</span>
                         </div>
                     </div>
                     {{-- Mobile close --}}
-                    <button @click="sidebarOpen = false" class="lg:hidden text-[#94A3B8] hover:text-white p-1">
+                    <button @click="sidebarOpen = false" class="lg:hidden absolute right-3 text-[#94A3B8] hover:text-white p-1">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
 
                 {{-- Section Label --}}
-                <div class="px-6 pt-6 pb-2 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                <div class="px-6 pt-6 pb-2 text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">
                     MAIN MENU
                 </div>
 
@@ -104,8 +255,8 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"/></svg>
                             <span>Data Ter-flag</span>
                         </div>
-                        <span class="w-5 h-5 rounded-none {{ request()->routeIs('admin.terflag*') ? 'bg-white text-[#2563EB]' : 'bg-[#1E293B] text-[#60A5FA] border border-[#334155]' }} text-[10px] font-mono font-bold flex items-center justify-center">
-                            {{ $totalTerflagCount ?? 4 }}
+                        <span class="w-5 h-5 rounded-md {{ request()->routeIs('admin.terflag*') ? 'bg-white text-[#2563EB]' : 'bg-[#142A50] text-[#93C5FD] border border-[#1E3A8A]' }} text-[10px] font-mono font-bold flex items-center justify-center">
+                            {{ $totalTerflagCount ?? 0 }}
                         </span>
                     </a>
 
@@ -154,10 +305,10 @@
             </div>
 
             {{-- Logout Button --}}
-            <div class="p-4 border-t border-[#1E293B]">
+            <div class="p-4 border-t border-[#18325B]">
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#1E293B] text-sm font-medium transition-colors">
+                    <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#142A50] text-sm font-medium transition-colors">
                         <svg class="w-5 h-5 text-[#EF4444]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/></svg>
                         <span>Keluar</span>
                     </button>
@@ -166,13 +317,13 @@
         </aside>
 
         {{-- ==================== MAIN CONTENT CANVAS ==================== --}}
-        <div class="flex-1 lg:pl-[250px] flex flex-col min-w-0">
+        <div class="flex-1 lg:pl-[250px] flex flex-col min-w-0 bg-[#F1F5F9]">
 
             {{-- TOPBAR BERSIH, RAPI & MINIMALIS --}}
-            <header class="px-6 lg:px-10 pt-7 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#E2E8F0]/80 bg-white/80 backdrop-blur-xs">
+            <header id="app-topbar" class="px-6 lg:px-10 py-3.5 sm:py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#CBD5E1] bg-white sticky top-0 z-30 shadow-2xs">
                 <div class="flex items-center gap-3">
                     {{-- Hamburger Mobile --}}
-                    <button @click="sidebarOpen = true" class="lg:hidden text-[#1E293B] p-2 rounded-lg hover:bg-[#F1F5F9] transition-colors border border-[#E2E8F0]">
+                    <button @click="sidebarOpen = true" class="lg:hidden text-[#1E293B] p-2 rounded-lg hover:bg-[#F1F5F9] transition-colors border border-[#CBD5E1]">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
                     </button>
 
@@ -189,50 +340,9 @@
                     @yield('page-actions')
 
                     {{-- DROPDOWN NOTIFIKASI SISTEM --}}
-                    <div class="relative" x-data="{
-                        open: false,
-                        notifications: [
-                            {
-                                id: 1,
-                                title: 'Data Meter Ter-flag Anomali',
-                                desc: 'Unit A-12 terdeteksi anomali pemakaian (OCR conf 71%). Perlu verifikasi admin.',
-                                time: '15 mnt lalu',
-                                unread: true,
-                                type: 'flag',
-                                link: '{{ route('admin.terflag') }}'
-                            },
-                            {
-                                id: 2,
-                                title: 'Batch Tagihan Massal Selesai',
-                                desc: 'Kalkulasi tarif bertingkat progresif untuk 140 unit selesai diproses di latar belakang.',
-                                time: '1 jam lalu',
-                                unread: true,
-                                type: 'batch',
-                                link: '{{ route('admin.tagihan') }}'
-                            },
-                            {
-                                id: 3,
-                                title: 'Surat Penyampaian Otomatis Siap',
-                                desc: 'Draf surat resmi PT. Arista Jaya diterbitkan otomatis untuk unit dengan tunggakan ≥ 4 bulan.',
-                                time: '3 jam lalu',
-                                unread: false,
-                                type: 'wa',
-                                link: '{{ route('admin.surat-tunggakan') }}'
-                            }
-                        ],
-                        get unreadCount() {
-                            return this.notifications.filter(n => n.unread).length;
-                        },
-                        markAllAsRead() {
-                            this.notifications.forEach(n => n.unread = false);
-                        },
-                        readNotif(item) {
-                            item.unread = false;
-                            window.location.href = item.link;
-                        }
-                    }">
+                    <div class="relative" x-data="notificationDropdown({{ Js::from($systemNotifications ?? []) }})">
                         <button
-                            @click="open = !open"
+                            @click="toggleDropdown()"
                             type="button"
                             class="relative p-2 text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer focus:outline-none"
                             title="Pemberitahuan Sistem"
@@ -240,7 +350,7 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
                             </svg>
-                            <template x-if="unreadCount > 0">
+                            <template x-if="hasUnread">
                                 <span class="absolute top-1.5 right-1.5 flex h-2 w-2">
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EF4444] opacity-75"></span>
                                     <span class="relative inline-flex rounded-full h-2 w-2 bg-[#EF4444]"></span>
@@ -250,7 +360,7 @@
 
                         <div
                             x-show="open"
-                            @click.away="open = false"
+                            @click.away="closeDropdown()"
                             x-transition:enter="transition ease-out duration-150"
                             x-transition:enter-start="opacity-0 translate-y-1 scale-95"
                             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
@@ -260,39 +370,79 @@
                             class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg border border-[#CBD5E1] shadow-lg z-50 overflow-hidden"
                             style="display: none;"
                         >
-                            <div class="px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
+                            <div class="px-4 py-3 border-b border-[#CBD5E1] flex items-center justify-between bg-[#F8FAFC]">
                                 <div class="flex items-center gap-2">
                                     <h4 class="text-xs font-bold text-[#0F172A]">Notifikasi Sistem</h4>
-                                    <template x-if="unreadCount > 0">
+                                    <template x-if="hasUnread">
                                         <span class="px-1.5 py-0.5 rounded-md bg-[#0F172A] text-white text-[10px] font-mono font-bold" x-text="unreadCount + ' Baru'"></span>
                                     </template>
                                 </div>
-                                <button
-                                    type="button"
-                                    @click="markAllAsRead()"
-                                    class="text-[11px] font-semibold text-[#0F172A] hover:underline cursor-pointer"
-                                    x-show="unreadCount > 0"
-                                >
-                                    Tandai dibaca
-                                </button>
+                                <div class="flex items-center gap-2.5">
+                                    <button
+                                        type="button"
+                                        @click.stop="playNotificationSound()"
+                                        class="text-[11px] font-semibold text-[#64748B] hover:text-[#2563EB] flex items-center gap-1 transition-colors cursor-pointer"
+                                        title="Uji coba nada notifikasi"
+                                    >
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.757 3.63 8.25 4.51 8.25H6.75z"/>
+                                        </svg>
+                                        <span>Tes Suara</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="markAllAsRead()"
+                                        class="text-[11px] font-semibold text-[#2563EB] hover:underline cursor-pointer"
+                                        x-show="hasUnread"
+                                    >
+                                        Tandai dibaca
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="max-h-80 overflow-y-auto divide-y divide-[#E2E8F0]">
+                                <div x-show="notifications.length === 0" class="py-8 px-4 text-center">
+                                    <div class="w-10 h-10 mx-auto text-[#94A3B8] flex items-center justify-center mb-2">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+                                    </div>
+                                    <p class="text-xs font-semibold text-[#64748B]">Tidak ada notifikasi baru</p>
+                                    <p class="text-[11px] text-[#94A3B8] mt-0.5">Semua data pembacaan dan tagihan terkendali.</p>
+                                </div>
+
                                 <template x-for="item in notifications" :key="item.id">
                                     <div
                                         @click="readNotif(item)"
                                         class="p-3.5 hover:bg-[#F8FAFC] transition-colors cursor-pointer flex items-start gap-3 relative"
                                         :class="item.unread ? 'bg-[#F8FAFC]/80' : ''"
                                     >
-                                        <div class="w-7 h-7 rounded-md bg-[#F8FAFC] border border-[#CBD5E1] text-[#0F172A] flex items-center justify-center shrink-0 mt-0.5">
-                                            <template x-if="item.type === 'flag'">
-                                                <svg class="w-3.5 h-3.5 text-[#0F172A]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"/></svg>
-                                            </template>
+                                        {{-- Icon Tanpa Kotak Belakang, Menggunakan Vektor Modern Profesional --}}
+                                        <div class="shrink-0 mt-0.5 flex items-center justify-center">
                                             <template x-if="item.type === 'batch'">
-                                                <svg class="w-3.5 h-3.5 text-[#0F172A]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3"/></svg>
+                                                <svg class="w-5 h-5 text-[#2563EB]" viewBox="0 0 24 24" fill="currentColor" title="Batch Processing">
+                                                    <path d="M11.644 1.59a.75.75 0 0 1 .712 0l9.75 5.25a.75.75 0 0 1 0 1.32l-9.75 5.25a.75.75 0 0 1-.712 0l-9.75-5.25a.75.75 0 0 1 0-1.32l9.75-5.25Z" />
+                                                    <path d="M3.265 10.602l7.666 4.128a1.75 1.75 0 0 0 1.662 0l7.666-4.128 1.488.801a.75.75 0 0 1 0 1.32l-9.75 5.25a.75.75 0 0 1-.712 0l-9.75-5.25a.75.75 0 0 1 0-1.32l1.488-.801Z" />
+                                                    <path d="M3.265 15.602l7.666 4.128a1.75 1.75 0 0 0 1.662 0l7.666-4.128 1.488.801a.75.75 0 0 1 0 1.32l-9.75 5.25a.75.75 0 0 1-.712 0l-9.75-5.25a.75.75 0 0 1 0-1.32l1.488-.801Z" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="item.type === 'valid'">
+                                                <svg class="w-5 h-5 text-[#16A34A]" viewBox="0 0 24 24" fill="currentColor" title="Validasi Selesai">
+                                                    <path fill-rule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="item.type === 'flag'">
+                                                <svg class="w-5 h-5 text-[#EF4444]" viewBox="0 0 24 24" fill="currentColor" title="Anomali Flag">
+                                                    <path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" />
+                                                </svg>
                                             </template>
                                             <template x-if="item.type === 'wa'">
-                                                <svg class="w-3.5 h-3.5 text-[#0F172A]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/></svg>
+                                                <svg class="w-5 h-5 text-[#10B981]" viewBox="0 0 24 24" fill="currentColor" title="Notifikasi WhatsApp">
+                                                    <path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.177 7.152.521 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97ZM6.75 8.25a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H7.5Z" clip-rule="evenodd" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="!['flag', 'batch', 'valid', 'wa'].includes(item.type)">
+                                                <svg class="w-5 h-5 text-[#3B82F6]" viewBox="0 0 24 24" fill="currentColor" title="Info Sistem">
+                                                    <path fill-rule="evenodd" d="M5.25 9a6.75 6.75 0 0 1 13.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 0 1-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 1 1-7.48 0 24.585 24.585 0 0 1-4.831-1.244.75.75 0 0 1-.298-1.205A8.217 8.217 0 0 0 5.25 9.75V9Zm4.502 8.9a2.25 2.25 0 0 0 4.496 0 25.057 25.057 0 0 1-4.496 0Z" clip-rule="evenodd" />
+                                                </svg>
                                             </template>
                                         </div>
 
@@ -305,7 +455,7 @@
                                         </div>
 
                                         <template x-if="item.unread">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-[#0F172A] shrink-0 mt-1.5"></span>
+                                            <span class="w-1.5 h-1.5 rounded-full bg-[#2563EB] shrink-0 mt-1.5"></span>
                                         </template>
                                     </div>
                                 </template>
@@ -313,9 +463,9 @@
                         </div>
                     </div>
 
-                    {{-- Profil Avatar Admin --}}
+                    {{-- Profil Avatar Admin (Bundar Sesuai Permintaan) --}}
                     <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-[#0F172A] text-white font-mono font-bold text-xs flex items-center justify-center shadow-xs">
+                        <div class="w-9 h-9 rounded-full bg-[#0F172A] text-white font-mono font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-[#0F172A]/10">
                             {{ strtoupper(substr(Auth::user()->name ?? 'AD', 0, 2)) }}
                         </div>
                         <div class="hidden sm:block text-left">
@@ -330,11 +480,11 @@
             </header>
 
             {{-- KONTEN HALAMAN --}}
-            <main class="flex-1 px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
+            <main class="flex-1 px-4 sm:px-6 lg:px-10 pt-4 pb-6 sm:pt-5 sm:pb-8 bg-[#F1F5F9] content-dissolve">
 
                 {{-- Flash Messages --}}
                 @if(session('success'))
-                <div class="mb-6 px-4 py-3 bg-white border border-[#E2E8F0] border-l-4 border-l-[#10B981] rounded-lg text-sm flex items-center justify-between shadow-xs">
+                <div class="mb-3 px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-sm flex items-center justify-between shadow-xs">
                     <div class="flex items-center gap-2.5 text-[#0F172A] font-medium">
                         <svg class="w-5 h-5 text-[#10B981] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>{{ session('success') }}</span>
@@ -344,7 +494,7 @@
                 @endif
 
                 @if(session('error'))
-                <div class="mb-6 px-4 py-3 bg-white border border-[#E2E8F0] border-l-4 border-l-[#EF4444] rounded-lg text-sm flex items-center justify-between shadow-xs">
+                <div class="mb-3 px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-sm flex items-center justify-between shadow-xs">
                     <div class="flex items-center gap-2.5 text-[#0F172A] font-medium">
                         <svg class="w-5 h-5 text-[#EF4444] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
                         <span>{{ session('error') }}</span>

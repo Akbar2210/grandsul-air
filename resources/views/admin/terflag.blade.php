@@ -1,36 +1,36 @@
 @extends('layouts.admin')
 
-@section('title', 'Tinjau Data Ter-flag — Grand Sulawesi Air')
+@section('title', 'Tinjau Data Ter-flag — Pengelolaan Air Terintegrasi Grand Sulawesi')
 @section('page-title', 'Tinjau Data Ter-flag')
 @section('page-subtitle', 'Exception-based review human-in-the-loop untuk verifikasi anomali pembacaan meter')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-5">
 
     {{-- ==================== 3 KARTU STATUS EXCEPTION-BASED REVIEW (BENTUK ASLI DIPERTAHANKAN) ==================== --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-xs">
-            <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">ANTREAN ANOMALI</span>
-            <div class="mt-1 text-2xl font-black text-[#D97706] tracking-tight font-mono tabular-nums">
-                {{ $totalTerflagCount }} <span class="text-xs font-sans font-semibold text-[#64748B]">Unit Perlu Tinjauan</span>
+        <div class="bg-white rounded-xl border border-[#CBD5E1] p-4 sm:p-5 shadow-sm">
+            <span class="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider block">ANTREAN ANOMALI</span>
+            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight font-mono tabular-nums">
+                {{ $totalTerflagCount }} <span class="text-xs font-sans font-semibold text-[#0F172A]">Unit Perlu Tinjauan</span>
             </div>
-            <span class="text-[11px] text-[#64748B] font-medium mt-1 block">Tingkat anomali ~3.1% dari total unit</span>
+            <span class="text-[11px] text-[#0F172A] font-medium mt-1 block">Tingkat anomali ~{{ ($totalUnit ?? 140) > 0 ? round((($totalTerflagCount ?? 0) / ($totalUnit ?? 140)) * 100, 1) : 0 }}% dari total unit</span>
         </div>
 
-        <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-xs">
-            <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">METODE REVIEW</span>
+        <div class="bg-white rounded-xl border border-[#CBD5E1] p-4 sm:p-5 shadow-sm">
+            <span class="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider block">METODE REVIEW</span>
             <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight">
                 Human-in-the-Loop
             </div>
-            <span class="text-[11px] text-[#2563EB] font-medium mt-1 block">Komparasi Foto Dial vs OCR vs Riwayat</span>
+            <span class="text-[11px] text-[#0F172A] font-medium mt-1 block">Komparasi Foto Dial vs OCR vs Riwayat</span>
         </div>
 
-        <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 shadow-xs">
-            <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">STATUS BATCH TAGIHAN</span>
-            <div class="mt-1 text-2xl font-black text-[#059669] tracking-tight font-mono tabular-nums">
-                127 Valid
+        <div class="bg-white rounded-xl border border-[#CBD5E1] p-4 sm:p-5 shadow-sm">
+            <span class="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider block">STATUS BATCH TAGIHAN</span>
+            <div class="mt-1 text-2xl font-black text-[#0F172A] tracking-tight font-mono tabular-nums">
+                {{ $validBacaanCount ?? 0 }} Valid
             </div>
-            <span class="text-[11px] text-[#059669] font-medium mt-1 block">Siap diproses ke batch billing</span>
+            <span class="text-[11px] text-[#0F172A] font-medium mt-1 block">Siap diproses ke batch billing</span>
         </div>
     </div>
 
@@ -38,7 +38,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
         {{-- ==================== KOLOM KIRI: ANTREAN TINJAUAN ==================== --}}
-        <div class="lg:col-span-7 bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
+        <div class="lg:col-span-7 bg-white rounded-xl border border-[#CBD5E1] shadow-sm overflow-hidden">
             <div class="px-6 py-5 border-b border-[#F1F5F9] flex items-center justify-between bg-[#F8FAFC]/50">
                 <div>
                     <h2 class="text-sm font-bold text-[#0F172A]">Antrean Data Ter-flag</h2>
@@ -53,7 +53,7 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
                     <thead>
-                        <tr class="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[#64748B] font-bold uppercase tracking-wider text-[11px]">
+                        <tr class="bg-[#F8FAFC] border-b border-[#CBD5E1] text-[#0F172A] font-bold uppercase tracking-wider text-[11px]">
                             <th class="py-3.5 px-5 whitespace-nowrap">Unit</th>
                             <th class="py-3.5 px-4 whitespace-nowrap">Pemilik</th>
                             <th class="py-3.5 px-4">Alasan Anomali</th>
@@ -66,7 +66,7 @@
                         @php $isSelected = ($selected && $selected->id === $item->id); @endphp
                         <tr class="hover:bg-[#F8FAFC] transition-colors {{ $isSelected ? 'bg-[#EFF6FF]/60 font-semibold' : '' }}">
                             <td class="py-4 px-5 whitespace-nowrap">
-                                <span class="px-2.5 py-1 rounded-lg bg-[#0F172A] text-white font-mono font-bold text-xs inline-block tabular-nums">
+                                <span class="font-mono font-bold text-xs text-[#0F172A] tabular-nums">
                                     {{ $item->unit->nomor_rumah ?? '—' }}
                                 </span>
                             </td>
@@ -94,9 +94,9 @@
 
                             <td class="py-4 px-5 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.terflag', ['id' => $item->id]) }}"
-                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl {{ $isSelected ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0]' }} text-xs font-bold transition-all">
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl {{ $isSelected ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0]' }} text-xs font-normal transition-all">
                                     <span>Tinjau</span>
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
                                 </a>
                             </td>
                         </tr>
@@ -115,7 +115,7 @@
         </div>
 
         {{-- ==================== KOLOM KANAN: DETAIL PENCATATAN (BENTUK ASLI DIPERTAHANKAN) ==================== --}}
-        <div class="lg:col-span-5 bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
+        <div class="lg:col-span-5 bg-white rounded-xl border border-[#CBD5E1] shadow-sm overflow-hidden">
             @if($selected)
             <div class="px-6 py-5 border-b border-[#F1F5F9] flex items-center justify-between bg-[#F8FAFC]/50">
                 <div>
@@ -131,7 +131,7 @@
 
                 <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">FOTO BUKTI FISIK METERAN</span>
+                        <span class="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider">FOTO BUKTI FISIK METERAN</span>
                         <span class="inline-flex items-center gap-1.5 text-[10px] text-[#0F172A] font-semibold bg-[#F8FAFC] border border-[#CBD5E1] px-2 py-0.5 rounded-md">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
                             <span>Kamera Petugas Terverifikasi</span>
@@ -139,7 +139,7 @@
                     </div>
 
                     <div class="w-full bg-[#1E293B] rounded-2xl overflow-hidden border border-[#334155] shadow-inner relative flex flex-col items-center justify-center p-6 text-white">
-                        @if($selected->foto_meter && !in_array($selected->foto_meter, ['sample_meter.jpg', 'sample.jpg']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($selected->foto_meter))
+                        @if($selected->foto_meter && !in_array($selected->foto_meter, ['sample_meter.jpg', 'sample.jpg']) && (\Illuminate\Support\Facades\Storage::disk('public')->exists($selected->foto_meter) || file_exists(public_path('storage/' . $selected->foto_meter))))
                             <div class="w-full max-h-60 rounded-xl overflow-hidden border-2 border-[#3B82F6] relative shadow-lg">
                                 <img src="{{ asset('storage/' . $selected->foto_meter) }}" alt="Foto Bukti Meteran Unit {{ $selected->unit->nomor_rumah ?? '' }}" class="w-full h-56 object-contain bg-[#0F172A]">
                                 <span class="absolute top-2 left-2 bg-[#2563EB] text-white font-mono font-bold text-[9px] px-2 py-0.5 rounded-md uppercase shadow-xs">
@@ -196,9 +196,11 @@
 
                 {{-- 3 Metrik Komparasi --}}
                 <div class="grid grid-cols-3 gap-2.5 text-center">
-                    <div class="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+                    <div class="p-3 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1]">
                         <span class="text-[10px] font-bold text-[#64748B] uppercase block">Bulan Lalu</span>
-                        <span class="text-sm font-extrabold text-[#0F172A] font-mono tabular-nums block mt-0.5">{{ $selected->angka_meter_bulanlalu }} m³</span>
+                        <span class="text-sm font-extrabold text-[#0F172A] font-mono tabular-nums block mt-0.5">
+                            {{ $selected->angka_meter_bulanlalu > 0 ? $selected->angka_meter_bulanlalu . ' m³' : '0 (Awal)' }}
+                        </span>
                     </div>
                     <div class="p-3 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1]">
                         <span class="text-[10px] font-bold text-[#334155] uppercase block">Hasil OCR</span>
@@ -206,20 +208,23 @@
                     </div>
                     <div class="p-3 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1]">
                         <span class="text-[10px] font-bold text-[#64748B] uppercase block">Selisih Vol</span>
-                        @php $selisih = $selected->angka_meter - $selected->angka_meter_bulanlalu; @endphp
+                        @php
+                            $isStandAwal = ($selected->angka_meter_bulanlalu <= 0);
+                            $selisih = $isStandAwal ? 0 : ($selected->angka_meter - $selected->angka_meter_bulanlalu);
+                        @endphp
                         <span class="text-sm font-extrabold font-mono tabular-nums block mt-0.5 {{ $selisih < 0 ? 'text-[#DC2626]' : 'text-[#0F172A]' }}">
-                            {{ $selisih }} m³
+                            {{ $isStandAwal ? '0 m³ (Stand Awal)' : $selisih . ' m³' }}
                         </span>
                     </div>
                 </div>
 
                 {{-- Callout Anomali --}}
-                <div class="p-3.5 bg-[#F8FAFC] border border-[#CBD5E1] border-l-4 border-l-[#0F172A] rounded-lg text-xs text-[#334155]">
+                <div class="p-4 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-xs text-[#334155]">
                     <div class="flex items-center gap-2 mb-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#D97706] shrink-0"></span>
+                        <span class="w-2 h-2 rounded-full bg-[#D97706] shrink-0"></span>
                         <strong class="font-bold text-[#0F172A]">Indikasi Anomali Terdeteksi:</strong>
                     </div>
-                    <p class="leading-relaxed pl-3.5 text-[#475569]">
+                    <p class="leading-relaxed pl-4 text-[#475569]">
                         {{ $selected->catatan_anomali ?? 'Pola pemakaian tidak wajar atau angka meter lebih kecil dari bulan lalu.' }}
                     </p>
                 </div>
@@ -244,24 +249,14 @@
 
                     <div class="space-y-2 pt-1">
                         <button type="submit" name="action" value="validate"
-                                class="w-full py-3 rounded-xl bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.99] text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                class="w-full py-3 rounded-xl bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.99] text-white font-normal text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer">
                             <span>Validasi Pembacaan (Stand Sesuai)</span>
                         </button>
 
-                        <div class="grid grid-cols-2 gap-2">
-                            <button type="submit" name="action" value="edit"
-                                    class="py-2.5 px-3 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer">
-                                <svg class="w-3.5 h-3.5 text-[#60A5FA]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
-                                <span>Simpan Koreksi</span>
-                            </button>
-
-                            <button type="submit" name="action" value="reject"
-                                    class="py-2.5 px-3 rounded-xl bg-white hover:bg-[#FEF2F2] active:scale-[0.99] text-[#DC2626] border border-[#FCA5A5] font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                                <span>Tolak (Foto Ulang)</span>
-                            </button>
-                        </div>
+                        <button type="submit" name="action" value="reject"
+                                class="w-full py-3 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] active:scale-[0.99] text-white font-normal text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer">
+                            <span>Tolak (Foto Ulang)</span>
+                        </button>
                     </div>
                 </form>
             </div>

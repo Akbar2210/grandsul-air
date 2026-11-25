@@ -3,7 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Verifikasi Nota — Grand Sulawesi Air</title>
+    <title>Verifikasi Nota — Pengelolaan Air Terintegrasi Grand Sulawesi</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -36,7 +40,7 @@
             <p class="text-xs mt-1 {{ $ok ? 'text-[#166534]' : 'text-[#991B1B]' }}">{{ $result['reason'] }}</p>
         </div>
 
-        <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-2 text-xs">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] p-4 space-y-2 text-xs">
             <p class="font-bold text-[#0F172A] mb-1">Hasil Pemeriksaan Kriptografi</p>
             @foreach([
                 'terdaftar_di_sistem' => 'Nota terdaftar di sistem',
@@ -54,7 +58,7 @@
 
         @if($result['data_nota'])
             @php $d = $result['data_nota']; @endphp
-            <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-2 text-xs">
+            <div class="bg-white rounded-2xl border border-[#CBD5E1] p-4 space-y-2 text-xs">
                 <p class="font-bold text-[#0F172A] mb-1">Detail Nota</p>
                 <div class="flex justify-between"><span class="text-[#64748B]">Nomor Nota</span><span class="font-bold font-mono">{{ $d['nomor_nota'] }}</span></div>
                 <div class="flex justify-between"><span class="text-[#64748B]">Unit / Penghuni</span><span class="font-bold">{{ $d['unit_penghuni'] }}</span></div>

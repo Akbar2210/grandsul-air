@@ -5,7 +5,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Grand Sulawesi Air') }}</title>
+        <title>{{ config('app.name', 'Pengelolaan Air Terintegrasi Grand Sulawesi') }}</title>
+
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
+        <link rel="shortcut icon" type="image/png" href="{{ asset('images/logo.png') }}">
 
         <!-- Fonts: Poppins -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,8 +19,8 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-[#F8FAFC] text-slate-800">
-        <div class="min-h-screen bg-[#F8FAFC]">
+    <body class="font-sans antialiased bg-[#F1F5F9] text-slate-800">
+        <div class="min-h-screen bg-[#F1F5F9]">
             @include('layouts.navigation')
 
             <!-- Page Heading -->
@@ -29,7 +33,7 @@
             @endisset
 
             <!-- Page Content -->
-            <main>
+            <main class="content-dissolve">
                 {{ $slot }}
             </main>
         </div>

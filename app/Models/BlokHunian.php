@@ -12,4 +12,9 @@ class BlokHunian extends Model
     {
         return $this->hasMany(UnitHunian::class, 'blok_id');
     }
+
+    public function units()
+    {
+        return $this->unitHunians();
+    }
 }

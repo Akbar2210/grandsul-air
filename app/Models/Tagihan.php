@@ -25,11 +25,16 @@ class Tagihan extends Model
 
     public function pembayaran()
     {
-        return $this->hasOne(Pembayaran::class, 'tagihan_id');
+        return $this->hasOne(Pembayaran::class, 'tagihan_id')->latestOfMany();
+    }
+
+    public function pembayarans()
+    {
+        return $this->hasMany(Pembayaran::class, 'tagihan_id');
     }
 
     public function digitalSignature()
     {
         return $this->hasOne(DigitalSignature::class, 'tagihan_id');
     }
-}  
+}

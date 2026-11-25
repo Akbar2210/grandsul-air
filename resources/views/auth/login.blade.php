@@ -1,16 +1,16 @@
 <x-guest-layout>
     <div class="min-h-screen w-full flex flex-col lg:flex-row bg-[#F1F5F9]" x-data="{ showPassword: false }">
 
-        {{-- ==================== SISI KIRI: 30% SEKUNDER (NAVY DEEP BLUE #0B132B + AKSEN CYAN TIPIS) ==================== --}}
+        {{-- ==================== SISI KIRI: NAVY DEEP BLUE #0B132B + AKSEN CYAN TIPIS + GARIS LENGKUNG & BAYANGAN ==================== --}}
         <div
-            class="hidden lg:flex lg:w-1/2 min-h-screen relative flex-col items-center justify-center p-12 xl:p-16 overflow-hidden select-none border-r border-[#1C2849]"
+            class="hidden lg:flex lg:w-1/2 min-h-screen relative z-10 flex-col items-center justify-center p-12 xl:p-16 overflow-hidden select-none rounded-r-[36px] xl:rounded-r-[48px] shadow-[12px_0_32px_rgba(0,0,0,0.25)]"
             style="background: radial-gradient(80% 60% at 20% 10%, rgba(0, 242, 254, 0.16) 0%, rgba(0, 242, 254, 0) 60%), radial-gradient(70% 60% at 90% 100%, rgba(0, 242, 254, 0.10) 0%, rgba(0, 242, 254, 0) 60%), #0B132B;"
         >
-            {{-- Foto Perumahan Grand Sulawesi (Samar-samar di Belakang Logo Sesuai Permintaan) --}}
+            {{-- Foto Gedung Grand Sulawesi Samar-samar di Belakang Logo Sesuai Permintaan --}}
             <div class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                 <img
-                    src="{{ asset('images/bg-perumahan.jpg') }}"
-                    alt="Perumahan Grand Sulawesi"
+                    src="{{ asset('images/bg-login.jpg') }}"
+                    alt="Kantor Grand Sulawesi"
                     class="w-full h-full object-cover object-center opacity-20 filter brightness-75 contrast-105"
                 />
                 {{-- Lapisan Gradien Navy agar foto menyatu halus dengan tema #0B132B dan tidak terlalu kentara --}}
@@ -38,7 +38,18 @@
             </div>
 
             {{-- KARTU FORM LOGIN (PUTIH BERSIH #FFFFFF DI ATAS KANVAS ICE WHITE #F1F5F9) --}}
-            <div class="w-full max-w-[420px] bg-white border border-[#CBD5E1] rounded-xl p-6 sm:p-9 shadow-sm">
+            <style>
+                .login-card {
+                    border-radius: 16px !important;
+                }
+                .login-input {
+                    border-radius: 8px !important;
+                }
+                .login-btn {
+                    border-radius: 8px !important;
+                }
+            </style>
+            <div class="login-card w-full max-w-[420px] bg-white border border-[#CBD5E1] rounded-2xl p-6 sm:p-9 shadow-sm">
 
                 {{-- Header Form (Teks Judul Navy #0B132B) --}}
                 <div class="text-left mb-6 sm:mb-7">
@@ -52,7 +63,7 @@
 
                 {{-- Alert Error Global --}}
                 @if (isset($errors) && $errors->any())
-                    <div class="mb-5 p-3.5 rounded-lg text-xs bg-[#FEE2E2] text-[#DC2626] border border-[#DC2626]/20" role="alert">
+                    <div class="login-input mb-5 p-3.5 rounded-lg text-xs bg-[#FEE2E2] text-[#DC2626] border border-[#DC2626]/20" role="alert">
                         <div class="flex items-center gap-2.5">
                             <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
                             <span>{{ $errors->first() }}</span>
@@ -67,7 +78,7 @@
                 <form method="POST" action="{{ route('login') }}" class="space-y-4 sm:space-y-5">
                     @csrf
 
-                    {{-- Username / Email (Label Navy #0B132B, Border Normal #CBD5E1, Fokus Aksen Cyan #00F2FE) --}}
+                    {{-- Username / Email (Label Navy #0B132B, Border Normal #CBD5E1, Fokus Garis Hitam) --}}
                     <div>
                         <label for="email" class="block text-xs sm:text-sm font-semibold text-[#0B132B] mb-1.5">
                             Username / Email
@@ -84,13 +95,13 @@
                                 required
                                 autofocus
                                 autocomplete="username"
-                                class="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-4 text-sm bg-white border border-[#CBD5E1] rounded-lg text-[#0B132B] placeholder-[#5B6785] focus:outline-none focus:border-[#00F2FE] focus:ring-2 focus:ring-[#00F2FE]/30 transition-all {{ (isset($errors) && $errors->has('email')) ? '!border-[#DC2626]' : '' }}"
+                                class="login-input w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-4 text-sm bg-white border border-[#CBD5E1] rounded-lg text-[#0B132B] placeholder-[#5B6785] focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all {{ (isset($errors) && $errors->has('email')) ? '!border-[#DC2626]' : '' }}"
                                 placeholder="Masukkan username atau email"
                             />
                         </div>
                     </div>
 
-                    {{-- Password (Label Navy #0B132B, Border Normal #CBD5E1, Fokus Aksen Cyan #00F2FE) --}}
+                    {{-- Password (Label Navy #0B132B, Border Normal #CBD5E1, Fokus Garis Hitam) --}}
                     <div>
                         <label for="password" class="block text-xs sm:text-sm font-semibold text-[#0B132B] mb-1.5">
                             Password
@@ -105,7 +116,7 @@
                                 name="password"
                                 required
                                 autocomplete="current-password"
-                                class="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-10 text-sm bg-white border border-[#CBD5E1] rounded-lg text-[#0B132B] placeholder-[#5B6785] focus:outline-none focus:border-[#00F2FE] focus:ring-2 focus:ring-[#00F2FE]/30 transition-all {{ (isset($errors) && $errors->has('password')) ? '!border-[#DC2626]' : '' }}"
+                                class="login-input w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-10 text-sm bg-white border border-[#CBD5E1] rounded-lg text-[#0B132B] placeholder-[#5B6785] focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all {{ (isset($errors) && $errors->has('password')) ? '!border-[#DC2626]' : '' }}"
                                 placeholder="Masukkan password"
                             />
                             <button
@@ -127,7 +138,7 @@
                             <input
                                 type="checkbox"
                                 name="remember"
-                                class="w-4 h-4 rounded border-[#CBD5E1] text-[#00C4CE] focus:ring-[#00F2FE]"
+                                class="w-4 h-4 rounded border-[#CBD5E1] text-[#0B132B] focus:ring-black"
                             />
                             <span class="text-xs sm:text-sm text-[#5B6785]">Ingat saya</span>
                         </label>
@@ -136,7 +147,7 @@
                     {{-- Tombol Masuk: 10% Aksen (Neon Cyan #00F2FE, Teks Navy #0B132B Wajib) --}}
                     <button
                         type="submit"
-                        class="w-full h-11 sm:h-12 rounded-lg bg-[#00F2FE] hover:bg-[#00C4CE] active:scale-[0.99] text-[#0B132B] text-sm sm:text-base font-bold shadow-md shadow-[#00F2FE]/25 transition-all flex items-center justify-center gap-2 mt-2"
+                        class="login-btn w-full h-11 sm:h-12 rounded-lg bg-[#00F2FE] hover:bg-[#00C4CE] active:scale-[0.99] text-[#0B132B] text-sm sm:text-base font-bold shadow-md shadow-[#00F2FE]/25 transition-all flex items-center justify-center gap-2 mt-2"
                     >
                         <span>Masuk</span>
                     </button>

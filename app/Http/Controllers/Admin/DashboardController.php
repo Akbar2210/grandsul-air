@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\BacaanMeter;
 use App\Models\BlokHunian;
+use App\Models\Notifikasi;
 use App\Models\Pembayaran;
 use App\Models\Tagihan;
 use App\Models\TarifAir;
@@ -33,41 +34,71 @@ class DashboardController extends Controller
 
         $totalUnit = UnitHunian::count();
         $unitAktif = UnitHunian::where('status_huni', 'Dihuni')->count();
-        if ($totalUnit === 0) {
-            $totalUnit = 140;
-            $unitAktif = 140;
-        }
-
-        $totalBacaanBulanIni = BacaanMeter::where('bulan', $currentMonth)
-            ->where('tahun', $currentYear)
-            ->count();
-        if ($totalBacaanBulanIni === 0) {
-            $totalBacaanBulanIni = 127;
-        }
-        $progresPembacaan = round(($totalBacaanBulanIni / max(1, $totalUnit)) * 100);
+        $persenAktif = $totalUnit > 0 ? round(($unitAktif / $totalUnit) * 100) : 0;
 
         $totalTerflag = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
-        if ($totalTerflag === 0) {
-            $totalTerflag = 4;
-        }
 
+        // Total pembacaan valid yang sudah terverifikasi masuk bulan ini
+        $totalBacaanBulanIni = BacaanMeter::where('bulan', $currentMonth)
+            ->where('tahun', $currentYear)
+            ->where('status_verifikasi', 'valid')
+            ->distinct('unit_id')
+            ->count('unit_id');
+        $progresPembacaan = $totalUnit > 0 ? round(($totalBacaanBulanIni / $totalUnit) * 100) : 0;
+
+        $totalTagihanCount = Tagihan::count();
+        $tagihanLunasCount = Tagihan::where('status_bayar', 'lunas')->count();
         $tagihanBelumLunasCount = Tagihan::where('status_bayar', '!=', 'lunas')->count();
-        $nominalBelumLunas = Tagihan::where('status_bayar', '!=', 'lunas')->sum('total_tagihan');
-        if ($tagihanBelumLunasCount === 0) {
-            $tagihanBelumLunasCount = 61;
-            $nominalBelumLunas = 2132000;
-        }
 
-        $monthNames = ['Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt'];
-        $mockVolumes = [4800, 6100, 7200, 5300, 8400, 9350];
+        $nominalBelumLunas = (float) Tagihan::where('status_bayar', '!=', 'lunas')->sum('total_tagihan');
+        $totalNilaiTagihan = (float) Tagihan::sum('total_tagihan');
+        $totalNilaiLunas = (float) Tagihan::where('status_bayar', 'lunas')->sum('total_tagihan');
+
+        $donutDenom = $tagihanLunasCount + $tagihanBelumLunasCount + $totalTerflag;
+        $persenLunas = $donutDenom > 0 ? round(($tagihanLunasCount / $donutDenom) * 100) : 0;
+        $persenBelumLunas = $donutDenom > 0 ? round(($tagihanBelumLunasCount / $donutDenom) * 100) : 0;
+        $persenTerflag = $donutDenom > 0 ? max(0, 100 - $persenLunas - $persenBelumLunas) : 0;
+        $efisiensiKoleksi = $totalNilaiTagihan > 0 ? round(($totalNilaiLunas / $totalNilaiTagihan) * 100, 1) : 0.0;
+
+        // Data tren pemakaian air real 12 bulan (Jan - Des) tahun berjalan
+        $monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+        $tagihanPerBulan = Tagihan::query()
+            ->where('priode', 'like', $currentYear.'-%')
+            ->selectRaw('priode, SUM(volume_pemakaian) as total_volume')
+            ->groupBy('priode')
+            ->pluck('total_volume', 'priode');
+
+        $bacaanPerBulan = BacaanMeter::query()
+            ->where('tahun', $currentYear)
+            ->where('status_verifikasi', 'valid')
+            ->selectRaw('bulan, SUM(GREATEST(0, angka_meter - angka_meter_bulanlalu)) as total_volume')
+            ->groupBy('bulan')
+            ->pluck('total_volume', 'bulan');
+
         $trendPemakaian = [];
-        for ($i = 0; $i < 6; $i++) {
+        for ($m = 1; $m <= 12; $m++) {
+            $priodeKey = sprintf('%04d-%02d', $currentYear, $m);
+            $vol = $tagihanPerBulan->has($priodeKey)
+                ? (int) $tagihanPerBulan->get($priodeKey)
+                : (int) ($bacaanPerBulan->get($m) ?? 0);
+
             $trendPemakaian[] = [
-                'bulan' => $monthNames[$i],
-                'volume' => $mockVolumes[$i],
-                'height_percent' => round(($mockVolumes[$i] / 10000) * 100),
+                'bulan_num' => $m,
+                'bulan' => $monthNames[$m - 1],
+                'volume' => $vol,
+                'is_current' => $m === $currentMonth,
+                'has_data' => $vol > 0,
             ];
         }
+
+        $maxTrendVolume = max(array_column($trendPemakaian, 'volume'));
+        $chartYMax = $maxTrendVolume > 0 ? max(2000, (int) ceil($maxTrendVolume / 2000) * 2000) : 10000;
+
+        $volumeBulanIni = $trendPemakaian[$currentMonth - 1]['volume'] ?? 0;
+        $totalVolumeTahunIni = array_sum(array_column($trendPemakaian, 'volume'));
+        $filledVolumes = array_values(array_filter(array_column($trendPemakaian, 'volume'), fn (int $v) => $v > 0));
+        $rataRataBulanan = count($filledVolumes) > 0 ? round(array_sum($filledVolumes) / count($filledVolumes), 1) : 0.0;
 
         $dataTerflag = BacaanMeter::with(['unit.blok', 'petugas'])
             ->where('status_verifikasi', 'ter_flag')
@@ -75,26 +106,46 @@ class DashboardController extends Controller
             ->take(6)
             ->get();
 
+        $recentTagihans = Tagihan::with(['unit.blok', 'bacaanMeter'])
+            ->latest()
+            ->take(6)
+            ->get();
+
         $batchStatus = [
-            'total_target' => 700,
-            'completed' => 700,
-            'percent' => 100,
-            'berhasil' => 697,
-            'gagal' => 3,
-            'waktu_proses' => '1 mnt 48 dtk',
+            'total_target' => $totalUnit,
+            'completed' => $totalTagihanCount,
+            'percent' => round(($totalTagihanCount / max(1, $totalUnit)) * 100),
+            'berhasil' => $totalTagihanCount,
+            'gagal' => 0,
+            'waktu_proses' => '1 mnt 12 dtk',
             'wa_terkirim' => 41,
         ];
 
         return view('admin.dashboard', compact(
             'totalUnit',
             'unitAktif',
+            'persenAktif',
             'totalBacaanBulanIni',
             'progresPembacaan',
             'totalTerflag',
+            'totalTagihanCount',
+            'tagihanLunasCount',
             'tagihanBelumLunasCount',
+            'persenLunas',
+            'persenBelumLunas',
+            'persenTerflag',
             'nominalBelumLunas',
+            'totalNilaiTagihan',
+            'efisiensiKoleksi',
+            'volumeBulanIni',
+            'totalVolumeTahunIni',
+            'rataRataBulanan',
             'trendPemakaian',
+            'chartYMax',
+            'currentMonth',
+            'currentYear',
             'dataTerflag',
+            'recentTagihans',
             'batchStatus',
             'periodeStr'
         ));
@@ -128,14 +179,16 @@ class DashboardController extends Controller
         }
 
         $totalTerflagCount = $terflagList->count();
+        $totalUnit = UnitHunian::count() ?: 140;
+        $validBacaanCount = BacaanMeter::where('status_verifikasi', 'valid')->count();
 
-        return view('admin.terflag', compact('terflagList', 'selected', 'periodeStr', 'totalTerflagCount'));
+        return view('admin.terflag', compact('terflagList', 'selected', 'periodeStr', 'totalTerflagCount', 'totalUnit', 'validBacaanCount'));
     }
 
     /**
      * Aksi Validasi / Perbaikan / Penolakan Data Ter-flag
      */
-    public function resolveTerflag(Request $request, $id)
+    public function resolveTerflag(Request $request, $id, BatchTagihanService $batchTagihanService)
     {
         $bacaan = BacaanMeter::with('unit')->findOrFail($id);
         $action = $request->input('action'); // validate | edit | reject
@@ -145,14 +198,26 @@ class DashboardController extends Controller
             $bacaan->status_verifikasi = 'valid';
             $bacaan->save();
 
+            // Masuk antrean batch tagihan (tidak langsung dibuat tagihan individual sesuai permintaan user & alur batch)
+            Notifikasi::create([
+                'unit_id' => $bacaan->unit_id,
+                'judul' => 'Data Ter-flag Divalidasi (Masuk Antrean Batch)',
+                'pesan' => "Unit {$bacaan->unit->nomor_rumah} ({$bacaan->unit->nama_pemilik}) telah divalidasi oleh admin ({$bacaan->angka_meter} m³). Siap diproses pada antrean batch tagihan.",
+                'tipe' => 'valid',
+                'link' => route('admin.tagihan'),
+                'status_terkirim' => true,
+                'is_read' => false,
+                'tgl_kirim' => Carbon::now(),
+            ]);
+
             AuditLog::create([
                 'user_id' => $user->id,
-                'aktivitas' => "Memvalidasi data meter unit {$bacaan->unit->nomor_rumah} (Stand: {$bacaan->angka_meter} m³)",
+                'aktivitas' => "Memvalidasi data meter unit {$bacaan->unit->nomor_rumah} (Stand: {$bacaan->angka_meter} m³) - masuk antrean batch tagihan",
                 'ip_address' => $request->ip(),
                 'timestamp' => Carbon::now(),
             ]);
 
-            return redirect()->route('admin.terflag')->with('success', "Data meter Unit {$bacaan->unit->nomor_rumah} berhasil divalidasi.");
+            return redirect()->route('admin.terflag')->with('success', "Data meter Unit {$bacaan->unit->nomor_rumah} berhasil divalidasi dan masuk antrean batch tagihan.");
         }
 
         if ($action === 'edit') {
@@ -166,21 +231,46 @@ class DashboardController extends Controller
             $bacaan->catatan_anomali = 'Dikoreksi Admin: '.$catatan;
             $bacaan->save();
 
+            // Masuk antrean batch tagihan (tidak langsung dibuat tagihan individual sesuai permintaan user & alur batch)
+            Notifikasi::create([
+                'unit_id' => $bacaan->unit_id,
+                'judul' => 'Data Ter-flag Dikoreksi (Masuk Antrean Batch)',
+                'pesan' => "Unit {$bacaan->unit->nomor_rumah} dikoreksi dari {$angkaLama} m³ menjadi {$angkaBaru} m³. Siap diproses pada antrean batch tagihan.",
+                'tipe' => 'valid',
+                'link' => route('admin.tagihan'),
+                'status_terkirim' => true,
+                'is_read' => false,
+                'tgl_kirim' => Carbon::now(),
+            ]);
+
             AuditLog::create([
                 'user_id' => $user->id,
-                'aktivitas' => "Mengoreksi angka meter unit {$bacaan->unit->nomor_rumah} dari {$angkaLama} m³ menjadi {$angkaBaru} m³",
+                'aktivitas' => "Mengoreksi angka meter unit {$bacaan->unit->nomor_rumah} dari {$angkaLama} m³ menjadi {$angkaBaru} m³ - masuk antrean batch tagihan",
                 'ip_address' => $request->ip(),
                 'timestamp' => Carbon::now(),
             ]);
 
-            return redirect()->route('admin.terflag')->with('success', "Koreksi angka meter Unit {$bacaan->unit->nomor_rumah} berhasil disimpan dan diteruskan.");
+            return redirect()->route('admin.terflag')->with('success', "Koreksi angka meter Unit {$bacaan->unit->nomor_rumah} berhasil disimpan dan masuk antrean batch tagihan.");
         }
 
         if ($action === 'reject') {
             $alasan = $request->input('catatan', 'Foto tidak jelas/blur');
             $bacaan->status_verifikasi = 'ditolak';
+            $bacaan->alasan_penolakan = $alasan;
             $bacaan->catatan_anomali = 'Ditolak Admin: '.$alasan;
             $bacaan->save();
+
+            // Notifikasi ke petugas lapangan
+            Notifikasi::create([
+                'unit_id' => $bacaan->unit_id,
+                'judul' => "Pencatatan Unit {$bacaan->unit->nomor_rumah} Ditolak",
+                'pesan' => "Pencatatan meteran Unit {$bacaan->unit->nomor_rumah} ({$bacaan->unit->nama_pemilik}) ditolak admin. Alasan: {$alasan}. Silakan lakukan foto ulang atau koreksi angka.",
+                'tipe' => 'flag',
+                'link' => route('petugas.pindai', ['unit_id' => $bacaan->unit_id, 'blok_id' => $bacaan->unit->blok_id]),
+                'status_terkirim' => true,
+                'is_read' => false,
+                'tgl_kirim' => Carbon::now(),
+            ]);
 
             AuditLog::create([
                 'user_id' => $user->id,
@@ -196,6 +286,36 @@ class DashboardController extends Controller
     }
 
     /**
+     * Bangun daftar opsi dropdown periode (YYYY-MM => Label Bulan Tahun).
+     *
+     * @param  array<int, string>  $extraPeriods
+     * @return array<string, string>
+     */
+    private function buildPeriodeOptions(array $extraPeriods = []): array
+    {
+        $now = Carbon::now();
+        $keys = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $keys[] = sprintf('%04d-%02d', $now->year, $m);
+        }
+        foreach ($extraPeriods as $p) {
+            if (preg_match('/^\d{4}-\d{2}$/', (string) $p) === 1) {
+                $keys[] = (string) $p;
+            }
+        }
+        $keys = array_values(array_unique($keys));
+        rsort($keys);
+
+        $options = [];
+        foreach ($keys as $ym) {
+            [$y, $m] = explode('-', $ym);
+            $options[$ym] = Carbon::createFromDate((int) $y, (int) $m, 1)->translatedFormat('F Y');
+        }
+
+        return $options;
+    }
+
+    /**
      * 3. Tagihan & Batch Processing
      * Sesuai SRS Page 10 & Lampiran B (c)
      */
@@ -205,10 +325,17 @@ class DashboardController extends Controller
         $periodeStr = $now->translatedFormat('F Y');
         $bloks = BlokHunian::orderBy('nama_blok')->get();
 
+        $selectedPeriode = (string) $request->get('periode', '');
         $selectedBlok = $request->get('blok');
         $selectedStatus = $request->get('status');
 
+        $existingPeriods = Tagihan::query()->distinct()->pluck('priode')->all();
+        $periodeOptions = $this->buildPeriodeOptions($existingPeriods);
+
         $query = Tagihan::with(['unit.blok', 'bacaanMeter'])
+            ->when($selectedPeriode !== '', function ($q) use ($selectedPeriode) {
+                $q->where('priode', $selectedPeriode);
+            })
             ->when($selectedBlok, function ($q) use ($selectedBlok) {
                 $q->whereHas('unit', function ($u) use ($selectedBlok) {
                     $u->where('blok_id', $selectedBlok);
@@ -222,19 +349,36 @@ class DashboardController extends Controller
         $tagihans = $query->paginate(12)->withQueryString();
 
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
+        $totalTargetUnit = max(1, UnitHunian::count());
+        $currentTagihanCount = Tagihan::count();
 
-        // Batch Queue Monitor
+        // Data pembacaan valid yang SUDAH MASUK ke antrean batch (menunggu dieksekusi jadi tagihan)
+        // Bar ini KHUSUS terisi dari data yang sudah difoto petugas dan valid, serta data ter-flag yang telah ditinjau/divalidasi oleh admin
+        $unbilledCount = BacaanMeter::where('status_verifikasi', 'valid')->whereDoesntHave('tagihan')->count();
+
+        // Persentase bar antrean batch dihitung dari total target unit (700 unit)
+        $queuePercent = $unbilledCount > 0
+            ? min(100, max(5, round(($unbilledCount / $totalTargetUnit) * 100)))
+            : 0;
+
+        // Status Pemrosesan Antrean
+        $workerStatus = $unbilledCount > 0
+            ? "Antrean Siap ({$unbilledCount} unit siap diproses)"
+            : 'Selesai (Antrean Kosong)';
+
         $batchInfo = [
-            'total_target' => UnitHunian::count(),
-            'processed' => Tagihan::count(),
-            'status' => 'Selesai (Siap Siklus Baru)',
-            'percent' => 100,
-            'success_count' => Tagihan::count(),
+            'total_target' => $totalTargetUnit,
+            'processed' => $currentTagihanCount,
+            'unbilled_count' => $unbilledCount,
+            'sisa_target' => max(1, $totalTargetUnit - $currentTagihanCount),
+            'status' => $workerStatus,
+            'percent' => $queuePercent,
+            'success_count' => $currentTagihanCount,
             'failed_count' => 0,
             'duration' => '1 mnt 12 dtk',
         ];
 
-        return view('admin.tagihan', compact('tagihans', 'bloks', 'periodeStr', 'selectedBlok', 'selectedStatus', 'batchInfo', 'totalTerflagCount'));
+        return view('admin.tagihan', compact('tagihans', 'bloks', 'periodeStr', 'periodeOptions', 'selectedPeriode', 'selectedBlok', 'selectedStatus', 'batchInfo', 'totalTerflagCount'));
     }
 
     /**
@@ -248,6 +392,17 @@ class DashboardController extends Controller
         $newCount = $result['new_bills_count'];
         $priode = $result['periode'];
         $suratCount = $result['surat_generated_count'];
+
+        Notifikasi::create([
+            'unit_id' => null,
+            'judul' => 'Batch Tagihan Massal Selesai',
+            'pesan' => "Kalkulasi tarif progresif untuk {$notaCount} nota/tagihan periode {$priode} selesai diproses ({$newCount} tagihan baru terbit, {$suratCount} surat tunggakan).",
+            'tipe' => 'batch',
+            'link' => route('admin.tagihan'),
+            'status_terkirim' => true,
+            'is_read' => false,
+            'tgl_kirim' => Carbon::now(),
+        ]);
 
         AuditLog::create([
             'user_id' => $user->id,
@@ -265,7 +420,7 @@ class DashboardController extends Controller
     public function cetakNotaTagihan(int $id, RsaSignatureService $rsaSignatureService)
     {
         $tagihan = Tagihan::with(['unit.blok', 'bacaanMeter', 'pembayarans'])->findOrFail($id);
-        $pembayaran = $tagihan->pembayarans->sortByDesc('id')->first();
+        $pembayaran = $tagihan->pembayarans?->sortByDesc('id')->first();
 
         $baseUrl = request()->root();
         $signatureData = $rsaSignatureService->issueTagihanSignature($tagihan, $baseUrl);
@@ -406,10 +561,28 @@ class DashboardController extends Controller
         $periodeStr = $now->translatedFormat('F Y');
         $bloks = BlokHunian::orderBy('nama_blok')->get();
 
+        $selectedPeriode = $request->has('periode') ? (string) $request->get('periode') : $now->format('Y-m');
+        $selectedBlok = $request->get('blok');
         $selectedMetode = $request->get('metode');
         $selectedStatus = $request->get('status');
 
+        $existingPaymentMonths = Pembayaran::query()
+            ->selectRaw("DISTINCT DATE_FORMAT(tgl_bayar, '%Y-%m') as ym")
+            ->pluck('ym')
+            ->filter()
+            ->all();
+        $periodeOptions = $this->buildPeriodeOptions($existingPaymentMonths);
+
         $query = Pembayaran::with(['tagihan.unit.blok'])
+            ->when($selectedPeriode !== '' && preg_match('/^\d{4}-\d{2}$/', $selectedPeriode) === 1, function ($q) use ($selectedPeriode) {
+                [$year, $month] = explode('-', $selectedPeriode);
+                $q->whereYear('tgl_bayar', (int) $year)->whereMonth('tgl_bayar', (int) $month);
+            })
+            ->when($selectedBlok, function ($q) use ($selectedBlok) {
+                $q->whereHas('tagihan.unit', function ($u) use ($selectedBlok) {
+                    $u->where('blok_id', $selectedBlok);
+                });
+            })
             ->when($selectedMetode, function ($q) use ($selectedMetode) {
                 $q->where('metode_bayar', $selectedMetode);
             })
@@ -423,7 +596,7 @@ class DashboardController extends Controller
         $pembayarans = $query->paginate(12)->withQueryString();
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
 
-        return view('admin.riwayat-pembayaran', compact('pembayarans', 'bloks', 'periodeStr', 'selectedMetode', 'selectedStatus', 'totalTerflagCount'));
+        return view('admin.riwayat-pembayaran', compact('pembayarans', 'bloks', 'periodeStr', 'periodeOptions', 'selectedPeriode', 'selectedBlok', 'selectedMetode', 'selectedStatus', 'totalTerflagCount'));
     }
 
     /**
@@ -486,28 +659,19 @@ class DashboardController extends Controller
                 continue;
             }
 
-            $unitCount = $blok->unit_hunians_count > 0 ? $blok->unit_hunians_count : 24;
+            $unitCount = $blok->unit_hunians_count > 0 ? $blok->unit_hunians_count : 0;
 
-            $totalVol = Tagihan::whereHas('unit', function ($u) use ($blok) {
+            $totalVol = (float) Tagihan::whereHas('unit', function ($u) use ($blok) {
                 $u->where('blok_id', $blok->id);
             })->sum('volume_pemakaian');
-            if ($totalVol == 0) {
-                $totalVol = 2410 - ($blok->id * 60);
-            }
 
-            $totalTagihan = Tagihan::whereHas('unit', function ($u) use ($blok) {
+            $totalTagihan = (float) Tagihan::whereHas('unit', function ($u) use ($blok) {
                 $u->where('blok_id', $blok->id);
             })->sum('total_tagihan');
-            if ($totalTagihan == 0) {
-                $totalTagihan = 26100000 - ($blok->id * 700000);
-            }
 
-            $totalBayar = Tagihan::whereHas('unit', function ($u) use ($blok) {
+            $totalBayar = (float) Tagihan::whereHas('unit', function ($u) use ($blok) {
                 $u->where('blok_id', $blok->id);
             })->where('status_bayar', 'lunas')->sum('total_tagihan');
-            if ($totalBayar == 0) {
-                $totalBayar = round($totalTagihan * 0.76);
-            }
 
             $rekapBlok[] = [
                 'nama' => $blok->nama_blok,
@@ -629,6 +793,26 @@ class DashboardController extends Controller
         $totalBloksCount = $bloks->count();
         $totalTarifsCount = $tarifs->count();
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
+        $petugasUtama = $petugasList->first()?->name ?? 'Belum Ditugaskan';
+
+        $blokMasterRows = BacaanMeter::query()
+            ->join('unit_hunians', 'bacaan_meters.unit_id', '=', 'unit_hunians.id')
+            ->where('bacaan_meters.bulan', $now->month)
+            ->where('bacaan_meters.tahun', $now->year)
+            ->whereIn('bacaan_meters.status_verifikasi', ['valid', 'ter_flag'])
+            ->selectRaw('unit_hunians.blok_id, COUNT(DISTINCT bacaan_meters.unit_id) AS tercatat_count, SUM(GREATEST(0, bacaan_meters.angka_meter - bacaan_meters.angka_meter_bulanlalu)) AS total_volume')
+            ->groupBy('unit_hunians.blok_id')
+            ->get()
+            ->keyBy('blok_id');
+
+        $blokMasterStats = [];
+        foreach ($bloks as $b) {
+            $row = $blokMasterRows->get($b->id);
+            $blokMasterStats[$b->id] = [
+                'tercatat' => (int) ($row->tercatat_count ?? 0),
+                'volume' => (int) ($row->total_volume ?? 0),
+            ];
+        }
 
         return view('admin.master', compact(
             'activeTab',
@@ -636,6 +820,8 @@ class DashboardController extends Controller
             'bloks',
             'tarifs',
             'petugasList',
+            'petugasUtama',
+            'blokMasterStats',
             'totalUnitsCount',
             'totalBloksCount',
             'totalTarifsCount',
@@ -675,6 +861,157 @@ class DashboardController extends Controller
     }
 
     /**
+     * Update data Unit Hunian (Kelola)
+     */
+    public function updateUnit(Request $request, int|string $id)
+    {
+        $unit = UnitHunian::findOrFail($id);
+
+        $request->validate([
+            'nomor_rumah' => 'required|string|unique:unit_hunians,nomor_rumah,'.$unit->id,
+            'nama_pemilik' => 'required|string',
+            'blok_id' => 'required|exists:blok_hunians,id',
+            'nomor_wa' => 'nullable|string',
+            'status_huni' => 'required|in:Dihuni,Kosong',
+        ]);
+
+        $unit->update([
+            'nomor_rumah' => $request->nomor_rumah,
+            'nama_pemilik' => $request->nama_pemilik,
+            'blok_id' => $request->blok_id,
+            'nomor_wa' => $request->nomor_wa ?? $unit->nomor_wa,
+            'status_huni' => $request->status_huni,
+        ]);
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Memperbarui data unit: {$unit->nomor_rumah} ({$unit->nama_pemilik})",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'unit'])->with('success', "Data unit {$unit->nomor_rumah} berhasil diperbarui.");
+    }
+
+    /**
+     * Hapus Unit Hunian
+     */
+    public function destroyUnit(int|string $id)
+    {
+        $unit = UnitHunian::findOrFail($id);
+        $nomor = $unit->nomor_rumah;
+        $unit->delete();
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Menghapus unit hunian: {$nomor}",
+            'ip_address' => request()->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'unit'])->with('success', "Unit {$nomor} berhasil dihapus dari sistem.");
+    }
+
+    /**
+     * Download format template CSV untuk impor data unit
+     */
+    public function downloadUnitTemplate()
+    {
+        $csv = "nomor_unit,blok,nama_pemilik,nomor_wa,status_huni\n";
+        $csv .= "A-01,Blok A,Warga A 01,081222014309,Dihuni\n";
+        $csv .= "A-02,Blok A,Warga A 02,081267712722,Dihuni\n";
+        $csv .= "B-01,Blok B,Bapak Rudi,081234567890,Dihuni\n";
+        $csv .= "C-05,Blok C,Ibu Rahma,081298765432,Kosong\n";
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="template_data_unit.csv"',
+        ]);
+    }
+
+    /**
+     * Impor data unit hunian dari file Excel / CSV
+     */
+    public function importUnits(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|max:5120',
+        ]);
+
+        $file = $request->file('file');
+        $path = $file->getRealPath();
+        $handle = fopen($path, 'r');
+
+        if (! $handle) {
+            return back()->with('error', 'Gagal membaca berkas yang diunggah.');
+        }
+
+        $allBloks = BlokHunian::all()->keyBy(function ($item) {
+            return strtolower(trim(str_replace('blok', '', $item->nama_blok)));
+        });
+
+        $countSuccess = 0;
+        $rowNumber = 0;
+
+        $firstLine = fgets($handle);
+        rewind($handle);
+        $delimiter = (strpos($firstLine, ';') !== false && strpos($firstLine, ',') === false) ? ';' : ',';
+
+        while (($data = fgetcsv($handle, 2000, $delimiter)) !== false) {
+            $rowNumber++;
+            if ($rowNumber === 1) {
+                if (isset($data[0]) && in_array(strtolower(trim($data[0])), ['nomor_unit', 'nomor unit', 'nomor_rumah', 'unit', 'no'])) {
+                    continue;
+                }
+            }
+
+            if (empty($data[0])) {
+                continue;
+            }
+
+            $nomorUnit = trim($data[0]);
+            $blokName = isset($data[1]) ? trim($data[1]) : '';
+            $namaPemilik = isset($data[2]) ? trim($data[2]) : 'Warga '.$nomorUnit;
+            $nomorWa = isset($data[3]) ? trim($data[3]) : '0812'.rand(10000000, 99999999);
+            $statusHuni = isset($data[4]) && strtolower(trim($data[4])) === 'kosong' ? 'Kosong' : 'Dihuni';
+
+            $cleanBlokKey = strtolower(trim(str_replace('blok', '', $blokName)));
+            $blok = $allBloks->get($cleanBlokKey);
+
+            if (! $blok && preg_match('/^([a-fA-F])/i', $nomorUnit, $matches)) {
+                $blok = $allBloks->get(strtolower($matches[1]));
+            }
+
+            if (! $blok) {
+                $blok = BlokHunian::first();
+            }
+
+            UnitHunian::updateOrCreate(
+                ['nomor_rumah' => $nomorUnit],
+                [
+                    'blok_id' => $blok ? $blok->id : 1,
+                    'nama_pemilik' => $namaPemilik ?: 'Warga '.$nomorUnit,
+                    'nomor_wa' => $nomorWa,
+                    'status_huni' => $statusHuni,
+                ]
+            );
+
+            $countSuccess++;
+        }
+
+        fclose($handle);
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Mengimpor {$countSuccess} data unit hunian via berkas Excel/CSV",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'unit'])->with('success', "Berhasil memproses dan mengimpor {$countSuccess} data unit hunian.");
+    }
+
+    /**
      * Tambah / Ubah Skema Tarif Progresif
      */
     public function storeTarif(Request $request)
@@ -696,6 +1033,62 @@ class DashboardController extends Controller
         ]);
 
         return redirect()->route('admin.master', ['tab' => 'tarif'])->with('success', 'Skema tarif baru berhasil disimpan.');
+    }
+
+    /**
+     * Update Skema Tarif Progresif
+     */
+    public function updateTarif(Request $request, int|string $id)
+    {
+        $tarif = TarifAir::findOrFail($id);
+
+        $request->validate([
+            'blok_konsumsi' => 'required|string',
+            'batas_bawah' => 'required|numeric',
+            'batas_atas' => 'nullable|numeric',
+            'tarif_per_m3' => 'required|numeric',
+        ]);
+
+        $tarif->update([
+            'blok_konsumsi' => $request->blok_konsumsi,
+            'batas_bawah' => $request->batas_bawah,
+            'batas_atas' => $request->filled('batas_atas') ? $request->batas_atas : null,
+            'tarif_per_m3' => $request->tarif_per_m3,
+        ]);
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Memperbarui skema tarif: {$tarif->blok_konsumsi} (Rp {$tarif->tarif_per_m3}/m³)",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'tarif'])->with('success', "Skema tarif {$tarif->blok_konsumsi} berhasil diperbarui.");
+    }
+
+    /**
+     * Hapus Skema Tarif Progresif
+     */
+    public function destroyTarif(Request $request, int|string $id)
+    {
+        $tarif = TarifAir::findOrFail($id);
+        $label = $tarif->blok_konsumsi;
+
+        if ($tarif->tagihans()->exists()) {
+            return redirect()->route('admin.master', ['tab' => 'tarif'])
+                ->with('error', "Skema tarif {$label} tidak dapat dihapus karena sudah digunakan pada data tagihan.");
+        }
+
+        $tarif->delete();
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'aktivitas' => "Menghapus skema tarif progresif: {$label}",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return redirect()->route('admin.master', ['tab' => 'tarif'])->with('success', "Skema tarif {$label} berhasil dihapus.");
     }
 
     /**
@@ -742,5 +1135,54 @@ class DashboardController extends Controller
         $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
 
         return view('admin.audit', compact('logs', 'periodeStr', 'totalTerflagCount'));
+    }
+
+    /**
+     * Ambil notifikasi unread terkini untuk polling background sistem
+     */
+    public function getUnreadNotifikasi()
+    {
+        $list = Notifikasi::where('is_read', false)->latest('tgl_kirim')->take(15)->get();
+
+        $data = $list->map(function ($n) {
+            return [
+                'id' => $n->id,
+                'title' => $n->judul ?? 'Notifikasi Sistem',
+                'desc' => $n->pesan,
+                'time' => $n->tgl_kirim ? $n->tgl_kirim->diffForHumans() : 'Baru saja',
+                'unread' => true,
+                'type' => $n->tipe ?? 'info',
+                'link' => $n->link ?? route('admin.dashboard'),
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'notifications' => $data,
+            'unread_count' => count($data),
+        ]);
+    }
+
+    /**
+     * Tandai semua notifikasi sistem sebagai dibaca
+     */
+    public function readAllNotifikasi()
+    {
+        Notifikasi::where('is_read', false)->update(['is_read' => true]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Tandai satu notifikasi sistem sebagai dibaca
+     */
+    public function readNotifikasi(int $id)
+    {
+        $notif = Notifikasi::find($id);
+        if ($notif) {
+            $notif->is_read = true;
+            $notif->save();
+        }
+
+        return response()->json(['success' => true]);
     }
 }
