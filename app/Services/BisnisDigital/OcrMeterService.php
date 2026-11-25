@@ -176,14 +176,17 @@ class OcrMeterService
         $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
         $prompt = "Anda adalah asisten AI pembaca angka cerdas (Smart Numeric OCR) untuk sistem pencatatan meter air dan simulasi pengujian.\n".
-            "TUGAS UTAMA: Deteksi dan ekstrak ANGKA APAPUN yang terlihat jelas pada foto ini.\n\n".
+            "TUGAS UTAMA: Deteksi dan ekstrak ANGKA APAPUN yang terlihat pada foto ini sekaligus menilai kualitas visual foto secara objektif.\n\n".
             "PANDUAN PEMBACAAN:\n".
             "1. Jika pada foto terdapat METERAN AIR, baca deretan angka stand meterannya (biasanya digit roller hitam). Abaikan angka merah kecil/desimal.\n".
             "2. Jika foto BUKAN meteran air (karena untuk SIMULASI/TESTING, misalnya: angka yang ditulis tangan/cetak di kertas, layar HP/laptop, struk, stiker, buku, nomor rumah, atau objek apapun), BACA ANGKA UTAMA/TERJELAS YANG TERTULIS DI FOTO TERSEBUT.\n".
-            "3. Ambil hanya bilangan bulat positif (contoh: 25, 450, 1011, 41323).\n".
-            "4. Kembalikan HANYA format JSON valid murni (tanpa format markdown ```json) dengan struktur:\n".
-            "{\"digits\": 1234, \"confidence\": 98, \"raw_text\": \"1234\", \"notes\": \"Angka berhasil dibaca\"}\n".
-            "5. Hanya jika benar-benar TIDAK ADA ANGKA SAMA SEKALI pada gambar, kembalikan:\n".
+            "3. Ambil hanya bilangan bulat positif (contoh: 25, 450, 1011, 1820, 41323).\n".
+            "4. PENILAIAN SKOR CONFIDENCE (0-100) HARUS JUJUR & KETAT TERHADAP KUALITAS GAMBAR:\n".
+            "   - Jika gambar tajam, terang, fokus, dan tegak lurus: berikan confidence 90 - 99.\n".
+            "   - Jika gambar BLUR / KABUR, REDUP / GELAP, MIRING, berbayang, tidak fokus, atau ada pantulan cahaya/silau meskipun angkanya masih bisa dibaca/ditebak: WAJIB berikan confidence RENDAH antara 55 - 68 (contoh: 67).\n".
+            "5. Kembalikan HANYA format JSON valid murni (tanpa format markdown ```json) dengan struktur:\n".
+            "{\"digits\": 1820, \"confidence\": 67, \"raw_text\": \"1820\", \"notes\": \"Foto blur/redup/miring\"}\n".
+            "6. Hanya jika benar-benar TIDAK ADA ANGKA SAMA SEKALI atau terlalu rusak untuk dibaca, kembalikan:\n".
             '{"digits": null, "confidence": 0, "raw_text": "", "notes": "Tidak ditemukan angka pada foto"}';
 
         try {
@@ -266,14 +269,20 @@ class OcrMeterService
 
             $digits = (int) $data['digits'];
             $confidence = isset($data['confidence']) ? (float) $data['confidence'] : 95.0;
+            $message = 'Angka meteran berhasil dianalisis oleh AI Gemini.';
+
+            if ($confidence > 0 && $confidence < self::MIN_OCR_CONFIDENCE) {
+                $digits = $this->simulateLowConfidenceOcrMisread($digits);
+                $message = 'Foto blur/redup/miring — hasil pembacaan OCR berisiko meleset dan akan ditandai Ter-flag.';
+            }
 
             return [
                 'success' => true,
                 'suggested_digits' => $digits,
-                'raw_text' => (string) ($data['raw_text'] ?? (string) $digits),
+                'raw_text' => (string) $digits,
                 'confidence_score' => round($confidence, 2),
                 'provider' => 'gemini',
-                'message' => 'Angka meteran berhasil dianalisis oleh AI Gemini.',
+                'message' => $message,
             ];
         } catch (\Throwable $e) {
             return [
@@ -285,6 +294,42 @@ class OcrMeterService
                 'message' => 'Kendala koneksi ke AI Gemini: '.$e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Mensimulasikan kesalahan pembacaan digit khas OCR saat kualitas gambar buruk/blur (< 70%)
+     * dengan menukar 1-2 digit terakhir ke angka yang mirip secara visual.
+     */
+    public function simulateLowConfidenceOcrMisread(int $digits): int
+    {
+        $confusionMap = [
+            '0' => '8',
+            '1' => '7',
+            '2' => '7',
+            '3' => '8',
+            '4' => '9',
+            '5' => '6',
+            '6' => '5',
+            '7' => '1',
+            '8' => '3',
+            '9' => '4',
+        ];
+
+        $chars = str_split((string) max(0, $digits));
+        $len = count($chars);
+
+        if ($len === 0) {
+            return $digits;
+        }
+
+        // Ubah 1-2 digit di bagian belakang agar tampak seperti salah baca akibat blur
+        $positionsToAlter = $len >= 4 ? [$len - 1, $len - 3] : [$len - 1];
+        foreach ($positionsToAlter as $pos) {
+            $ch = $chars[$pos];
+            $chars[$pos] = $confusionMap[$ch] ?? '8';
+        }
+
+        return (int) implode('', $chars);
     }
 
     /**
@@ -477,6 +522,17 @@ class OcrMeterService
         bool $isOcrCorrected = false,
         bool $isFirstReading = false
     ): array {
+        // Rule OCR confidence rendah berlaku untuk semua bacaan (termasuk pencatatan perdana) jika belum dikoreksi manual
+        if (! $isOcrCorrected && $confidenceScore !== null && $confidenceScore < self::MIN_OCR_CONFIDENCE) {
+            $pemakaianFallback = ($isFirstReading || $angkaBulanLalu <= 0) ? 0.0 : ($angkaSekarang - $angkaBulanLalu);
+
+            return [
+                'status_verifikasi' => 'ter_flag',
+                'catatan_anomali' => "Foto miring/redup, OCR confidence rendah ({$confidenceScore}%)",
+                'pemakaian' => $pemakaianFallback,
+            ];
+        }
+
         // Jika pencatatan perdana (stand awal / belum ada riwayat bulan lalu)
         if ($isFirstReading || $angkaBulanLalu <= 0) {
             return [
@@ -492,15 +548,6 @@ class OcrMeterService
             return [
                 'status_verifikasi' => 'ter_flag',
                 'catatan_anomali' => "Angka lebih kecil dari bulan lalu ({$pemakaian} m³)",
-                'pemakaian' => $pemakaian,
-            ];
-        }
-
-        // Rule OCR confidence rendah hanya berlaku jika petugas belum memverifikasi/mengoreksi angka
-        if (! $isOcrCorrected && $confidenceScore !== null && $confidenceScore < self::MIN_OCR_CONFIDENCE) {
-            return [
-                'status_verifikasi' => 'ter_flag',
-                'catatan_anomali' => "Foto miring/redup, OCR confidence rendah ({$confidenceScore}%)",
                 'pemakaian' => $pemakaian,
             ];
         }

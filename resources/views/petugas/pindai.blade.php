@@ -437,9 +437,10 @@
                         <div x-show="ocrDone" class="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-[#0F172A]/95 px-3 py-2 border border-[#334155] rounded-xl flex items-center justify-between gap-2 text-white">
                             <div class="min-w-0">
                                 <p class="text-[10px] text-[#94A3B8] flex items-center gap-1">
-                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                    <span class="inline-block w-1.5 h-1.5 rounded-full" :class="confidenceScore < 70 ? 'bg-amber-400' : 'bg-emerald-400'"></span>
                                     <span>Hasil Analisis AI:</span>
-                                    <span x-show="confidenceScore > 0" class="text-emerald-400 font-semibold" x-text="'(' + Math.round(confidenceScore) + '%)'"></span>
+                                    <span x-show="confidenceScore > 0" class="font-semibold" :class="confidenceScore < 70 ? 'text-amber-400' : 'text-emerald-400'" x-text="'(' + Math.round(confidenceScore) + '%)'"></span>
+                                    <span x-show="confidenceScore > 0 && confidenceScore < 70" class="text-amber-300 font-semibold">— Confidence Rendah</span>
                                 </p>
                                 <p class="text-sm font-bold font-mono text-[#60A5FA]" x-text="ocrSuggestedDigits !== null ? (ocrSuggestedDigits + ' m³') : (ocrMessage || 'Tidak terbaca jelas, silakan ketik manual')"></p>
                             </div>
@@ -941,6 +942,7 @@
                             this.confidenceScore = result.confidence_score || 95.0;
                             // Masukkan langsung sebagai saran
                             this.angkaMeter = result.suggested_digits.toString();
+                            this.isOcrCorrected = false;
                             this.hitungPemakaian();
                         }
                     }

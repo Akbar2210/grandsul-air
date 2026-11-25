@@ -11,6 +11,7 @@ use App\Services\BisnisDigital\OcrMeterService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
@@ -326,6 +327,11 @@ class DashboardController extends Controller
 
             $hasCoords = ($u->latitude !== null && $u->longitude !== null);
 
+            $fotoUrl = null;
+            if ($bacaan?->foto_meter && ! in_array($bacaan->foto_meter, ['sample_meter.jpg', 'sample.jpg'], true)) {
+                $fotoUrl = asset('storage/'.$bacaan->foto_meter);
+            }
+
             return [
                 'id' => $u->id,
                 'nomor_rumah' => $u->nomor_rumah ?? '—',
@@ -341,12 +347,19 @@ class DashboardController extends Controller
                 'alasan_ditolak' => $alasanDitolak,
                 'angka_sekarang' => $angkaSekarang,
                 'foto_meter' => $bacaan?->foto_meter,
+                'foto_meter_url' => $fotoUrl,
+                'confidence_score' => $bacaan?->confidence_score,
             ];
         })->values()->all();
 
         // Data unit terpilih yang siap dikonsumsi di frontend
         $selectedUnitMapped = null;
         if ($selectedUnit) {
+            $selectedFotoUrl = null;
+            if ($bacaanAktifUnit?->foto_meter && ! in_array($bacaanAktifUnit->foto_meter, ['sample_meter.jpg', 'sample.jpg'], true)) {
+                $selectedFotoUrl = asset('storage/'.$bacaanAktifUnit->foto_meter);
+            }
+
             $selectedUnitMapped = [
                 'id' => $selectedUnit->id,
                 'nomor_rumah' => $selectedUnit->nomor_rumah ?? '—',
@@ -363,6 +376,8 @@ class DashboardController extends Controller
                 'alasan_ditolak' => $bacaanAktifUnit?->alasan_penolakan,
                 'angka_sekarang' => $bacaanAktifUnit?->angka_meter,
                 'foto_meter' => $bacaanAktifUnit?->foto_meter,
+                'foto_meter_url' => $selectedFotoUrl,
+                'confidence_score' => $bacaanAktifUnit?->confidence_score,
             ];
         }
 
@@ -752,8 +767,11 @@ class DashboardController extends Controller
     public function getUnreadNotifikasi()
     {
         $user = Auth::user();
+        $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
+
         $list = Notifikasi::query()
-            ->where('user_id', $user->id)
+            ->when($hasUserIdCol, fn ($q) => $q->where('user_id', $user->id))
+            ->where('is_read', false)
             ->orderByDesc('tgl_kirim')
             ->orderByDesc('id')
             ->take(15)
@@ -784,8 +802,10 @@ class DashboardController extends Controller
      */
     public function readAllNotifikasi()
     {
+        $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
+
         Notifikasi::query()
-            ->where('user_id', Auth::id())
+            ->when($hasUserIdCol, fn ($q) => $q->where('user_id', Auth::id()))
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
@@ -799,8 +819,9 @@ class DashboardController extends Controller
     {
         $notif = Notifikasi::findOrFail($id);
         $user = Auth::user();
+        $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
 
-        if ((int) $notif->user_id !== (int) $user->id) {
+        if ($hasUserIdCol && (int) $notif->user_id !== (int) $user->id) {
             abort(403, 'Anda tidak memiliki akses ke notifikasi pengguna lain.');
         }
 
@@ -820,12 +841,15 @@ class DashboardController extends Controller
     {
         $notif = Notifikasi::findOrFail($id);
         $user = Auth::user();
+        $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
 
-        $isOwner = $notif->user_id !== null && (int) $notif->user_id === (int) $user->id;
-        $isAdminBroadcast = $notif->user_id === null && $user->hasRole('admin');
+        if ($hasUserIdCol) {
+            $isOwner = $notif->user_id !== null && (int) $notif->user_id === (int) $user->id;
+            $isAdminBroadcast = $notif->user_id === null && $user->hasRole('admin');
 
-        if (! $isOwner && ! $isAdminBroadcast) {
-            abort(403, 'Anda tidak memiliki akses ke notifikasi pengguna lain.');
+            if (! $isOwner && ! $isAdminBroadcast) {
+                abort(403, 'Anda tidak memiliki akses ke notifikasi pengguna lain.');
+            }
         }
 
         $notif->is_read = true;

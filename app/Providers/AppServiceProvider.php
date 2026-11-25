@@ -57,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
                         }
                     }
 
-                    $list = $query->orderByDesc('tgl_kirim')->orderByDesc('id')->take(15)->get();
+                    $list = $query->where('is_read', false)->orderByDesc('tgl_kirim')->orderByDesc('id')->take(15)->get();
                     $unreadCount = $list->where('is_read', false)->count();
 
                     $defaultLink = $user->hasRole('admin')

@@ -138,9 +138,15 @@
                             const hasNew = data.notifications.some(function(n) { return !knownIds.includes(n.id); });
                             if (hasNew && data.notifications.length > 0) {
                                 this.playNotificationSound();
-                                this.notifications = data.notifications;
                                 const maxId = Math.max.apply(null, data.notifications.map(function(n) { return n.id; }));
                                 sessionStorage.setItem('last_notif_id', maxId.toString());
+                                if (this.open) {
+                                    const newItems = data.notifications.filter(function(n) { return !knownIds.includes(n.id); });
+                                    this.notifications = newItems.concat(this.notifications);
+                                }
+                            }
+                            if (!this.open) {
+                                this.notifications = data.notifications;
                             }
                         }
                     } catch (e) {}
@@ -154,6 +160,7 @@
                 },
                 closeDropdown() {
                     this.open = false;
+                    this.notifications = this.notifications.filter(function(n) { return n.unread; });
                 },
                 async markAllAsRead() {
                     this.notifications.forEach(function(n) { n.unread = false; });

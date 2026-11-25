@@ -41,10 +41,16 @@
                     } catch (e) {}
                 },
                 toggleDropdown() {
-                    this.open = !this.open;
                     if (this.open) {
+                        this.closeDropdown();
+                    } else {
+                        this.open = true;
                         this.refreshNotifications();
                     }
+                },
+                closeDropdown() {
+                    this.open = false;
+                    this.notifications = this.notifications.filter(function(n) { return n.unread; });
                 },
                 async markAllAsRead() {
                     this.notifications.forEach(function(n) { n.unread = false; });
@@ -120,7 +126,7 @@
 
                 <div
                     x-show="open"
-                    @click.away="open = false"
+                    @click.away="closeDropdown()"
                     x-transition:enter="transition ease-out duration-150"
                     x-transition:enter-start="opacity-0 translate-y-1 scale-95"
                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"

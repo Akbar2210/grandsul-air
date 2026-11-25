@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DashboardController extends Controller
@@ -381,14 +382,10 @@ class DashboardController extends Controller
             ->distinct('unit_id')
             ->count('unit_id');
 
-        // Persentase progress bar batch (saat sudah terbit semua -> 100%, atau antrean siap -> proporsi antrean)
-        if ($unbilledCount > 0) {
-            $queuePercent = min(100, max(5, round(($unbilledCount / $totalTargetUnit) * 100)));
-        } elseif ($currentTagihanCount > 0) {
-            $queuePercent = min(100, round(($currentTagihanCount / $totalTargetUnit) * 100));
-        } else {
-            $queuePercent = 0;
-        }
+        // Persentase progress bar antrean batch: kosong (0%) saat tidak ada antrean, terisi proporsional saat ada data valid siap diproses
+        $queuePercent = $unbilledCount > 0
+            ? min(100, max(5, round(($unbilledCount / $totalTargetUnit) * 100)))
+            : 0;
 
         // Status Pemrosesan Antrean
         $workerStatus = $unbilledCount > 0
@@ -1518,10 +1515,15 @@ class DashboardController extends Controller
     public function getUnreadNotifikasi()
     {
         $adminId = Auth::id();
+        $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
+
         $list = Notifikasi::query()
-            ->where(function ($q) use ($adminId) {
-                $q->where('user_id', $adminId)
-                    ->orWhereNull('user_id');
+            ->where('is_read', false)
+            ->when($hasUserIdCol, function ($query) use ($adminId) {
+                $query->where(function ($q) use ($adminId) {
+                    $q->where('user_id', $adminId)
+                        ->orWhereNull('user_id');
+                });
             })
             ->orderByDesc('tgl_kirim')
             ->orderByDesc('id')
@@ -1554,10 +1556,14 @@ class DashboardController extends Controller
     public function readAllNotifikasi()
     {
         $adminId = Auth::id();
+        $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
+
         Notifikasi::query()
-            ->where(function ($q) use ($adminId) {
-                $q->where('user_id', $adminId)
-                    ->orWhereNull('user_id');
+            ->when($hasUserIdCol, function ($query) use ($adminId) {
+                $query->where(function ($q) use ($adminId) {
+                    $q->where('user_id', $adminId)
+                        ->orWhereNull('user_id');
+                });
             })
             ->where('is_read', false)
             ->update(['is_read' => true]);
@@ -1572,8 +1578,9 @@ class DashboardController extends Controller
     {
         $notif = Notifikasi::findOrFail($id);
         $adminId = Auth::id();
+        $hasUserIdCol = Schema::hasColumn('notifikasis', 'user_id');
 
-        if ($notif->user_id !== null && (int) $notif->user_id !== (int) $adminId) {
+        if ($hasUserIdCol && $notif->user_id !== null && (int) $notif->user_id !== (int) $adminId) {
             abort(403, 'Anda tidak memiliki akses ke notifikasi pengguna lain.');
         }
 
