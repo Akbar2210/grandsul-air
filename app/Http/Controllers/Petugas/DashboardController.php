@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Petugas;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\BacaanMeter;
 use App\Models\BlokHunian;
 use App\Models\Notifikasi;
@@ -502,6 +503,12 @@ class DashboardController extends Controller
         );
 
         if (! $gpsCheck['is_valid']) {
+            AuditLog::create([
+                'user_id' => $user->id,
+                'aktivitas' => "Penolakan pencatatan meteran Unit {$unit->nomor_rumah}: {$gpsCheck['message']}",
+                'ip_address' => $request->ip(),
+            ]);
+
             return back()->withInput()->with('error', $gpsCheck['message']);
         }
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+`   `<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
@@ -297,7 +297,7 @@
                     </div>
 
                     {{-- Tombol Cek Ulang & Simulasi GPS --}}
-                    <div class="mt-2 pt-2 border-t border-black/5 flex items-center justify-between gap-2 text-[10px]">
+                    <div class="mt-2 pt-2 border-t border-black/5 flex flex-wrap items-center justify-between gap-2 text-[10px]">
                         <button
                             type="button"
                             @click="checkGpsLocation()"
@@ -306,14 +306,25 @@
                             Perbarui GPS HP
                         </button>
 
-                        <button
-                            type="button"
-                            @click="useSimulatedUnitGps()"
-                            title="Simulasi lokasi di depan rumah unit terpilih"
-                            class="px-2.5 py-1 bg-[#0F172A] text-white rounded-lg font-semibold hover:bg-[#1E293B] cursor-pointer"
-                        >
-                            Simulasi Tepat di Unit
-                        </button>
+                        <div class="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                @click="useSimulatedOutOfRadiusGps()"
+                                title="Simulasi lokasi berada di luar radius rumah (180 m)"
+                                class="px-2.5 py-1 bg-[#DC2626] text-white rounded-lg font-semibold hover:bg-[#B91C1C] cursor-pointer"
+                            >
+                                Simulasi Luar Radius (180m)
+                            </button>
+
+                            <button
+                                type="button"
+                                @click="useSimulatedUnitGps()"
+                                title="Simulasi lokasi di depan rumah unit terpilih"
+                                class="px-2.5 py-1 bg-[#16A34A] text-white rounded-lg font-semibold hover:bg-[#15803D] cursor-pointer"
+                            >
+                                Simulasi Tepat di Unit
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -389,9 +400,19 @@
                         </template>
 
                         <template x-if="!isGpsValid">
-                            <div class="p-3 bg-[#FEF2F2]/10 border border-[#EF4444]/40 rounded-xl text-center max-w-[280px]">
-                                <p class="text-xs font-bold text-[#F87171]">Kamera & OCR Dinonaktifkan</p>
-                                <p class="text-[10px] text-[#CBD5E1] mt-0.5 leading-tight">Posisi GPS melebihi 50 m dari titik unit rumah ini.</p>
+                            <div class="space-y-2">
+                                <div class="p-3 bg-[#FEF2F2]/10 border border-[#EF4444]/40 rounded-xl text-center max-w-[280px] mx-auto">
+                                    <p class="text-xs font-bold text-[#F87171]">Lokasi tidak sesuai / di luar radius unit</p>
+                                    <p class="text-[10px] text-[#CBD5E1] mt-0.5 leading-tight">Posisi GPS melebihi 50 m dari titik unit rumah ini.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="document.getElementById('gallery_upload_input').click()"
+                                    class="mx-auto px-3.5 py-2 bg-[#1E293B] hover:bg-[#334155] text-white border border-[#475569] text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-transform active:scale-95"
+                                >
+                                    <svg class="w-4 h-4 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <span>Upload Gambar</span>
+                                </button>
                             </div>
                         </template>
                     </div>
@@ -439,10 +460,10 @@
                                 <p class="text-[10px] text-[#94A3B8] flex items-center gap-1">
                                     <span class="inline-block w-1.5 h-1.5 rounded-full" :class="confidenceScore < 70 ? 'bg-amber-400' : 'bg-emerald-400'"></span>
                                     <span>Hasil Analisis AI:</span>
-                                    <span x-show="confidenceScore > 0" class="font-semibold" :class="confidenceScore < 70 ? 'text-amber-400' : 'text-emerald-400'" x-text="'(' + Math.round(confidenceScore) + '%)'"></span>
-                                    <span x-show="confidenceScore > 0 && confidenceScore < 70" class="text-amber-300 font-semibold">— Confidence Rendah</span>
+                                    <span x-show="ocrDone" class="font-semibold" :class="confidenceScore < 70 ? 'text-amber-400' : 'text-emerald-400'" x-text="'(' + Math.round(confidenceScore) + '%)'"></span>
+                                    <span x-show="ocrDone && confidenceScore < 70" class="text-amber-300 font-semibold">— Confidence Rendah</span>
                                 </p>
-                                <p class="text-sm font-bold font-mono text-[#60A5FA]" x-text="ocrSuggestedDigits !== null ? (ocrSuggestedDigits + ' m³') : (ocrMessage || 'Tidak terbaca jelas, silakan ketik manual')"></p>
+                                <p class="text-sm font-bold font-mono text-[#60A5FA]" x-text="ocrSuggestedDigits !== null ? (ocrSuggestedDigits + ' m³') : (ocrMessage || 'OCR gagal membaca angka, silakan input manual')"></p>
                             </div>
                             <template x-if="ocrSuggestedDigits !== null">
                                 <span class="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-semibold rounded-lg flex items-center gap-1 shrink-0">
@@ -518,7 +539,7 @@
                 <div>
                     <button
                         type="submit"
-                        :disabled="!selectedUnit || !angkaMeter || isSubmitting || !isGpsValid"
+                        :disabled="!selectedUnit || !angkaMeter || isSubmitting"
                         class="w-full py-3.5 px-4 bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.99] disabled:bg-[#CBD5E1] disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                     >
                         <svg x-show="!isSubmitting" class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -528,7 +549,7 @@
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span x-text="isSubmitting ? 'Menyimpan Pencatatan...' : (!isGpsValid ? 'Terkunci — Di Luar Radius 50m' : (!angkaMeter ? 'Masukkan Angka Meteran' : 'Simpan Pembacaan Meter'))"></span>
+                        <span x-text="isSubmitting ? 'Menyimpan Pencatatan...' : (!angkaMeter ? 'Masukkan Angka Meteran' : 'Simpan Pembacaan Meter')"></span>
                     </button>
                 </div>
             </form>
@@ -688,6 +709,27 @@
                     this.gpsTitle = 'Mode Simulasi Area Kawasan';
                     this.gpsStatusMessage = 'Unit belum berkoordinat. Lokasi diset di kawasan perumahan (GPS Unverified).';
                 }
+            },
+
+            useSimulatedOutOfRadiusGps() {
+                const u = this.selectedUnit;
+                const baseLat = (u && u.has_coords && u.latitude !== null) ? Number(u.latitude) : Number(geofenceConfig.center_lat);
+                const baseLng = (u && u.has_coords && u.longitude !== null) ? Number(u.longitude) : Number(geofenceConfig.center_lng);
+                const maxRadius = (u && u.radius_toleransi) ? u.radius_toleransi : 50;
+
+                // Geser koordinat sekitar 180 meter ke utara (0.001619 derajat lintang ≈ 180 m)
+                const farLat = Number((baseLat + 0.001619).toFixed(8));
+                const farLng = baseLng;
+                const dist = this.calculateHaversineMeters(farLat, farLng, baseLat, baseLng);
+
+                this.latitude = farLat;
+                this.longitude = farLng;
+                this.gpsDistanceMeters = dist;
+                this.isGpsValid = false;
+                this.gpsUnverified = false;
+                this.gpsTitle = 'Lokasi tidak sesuai / di luar radius unit';
+                this.gpsStatusMessage = `Jarak Anda ${dist} m dari unit (melebihi batas ${maxRadius} m).`;
+                this.stopLiveCamera();
             },
 
             applyFilter() {
@@ -943,6 +985,13 @@
                             // Masukkan langsung sebagai saran
                             this.angkaMeter = result.suggested_digits.toString();
                             this.isOcrCorrected = false;
+                            this.hitungPemakaian();
+                        } else {
+                            this.ocrSuggestedDigits = null;
+                            this.confidenceScore = result.confidence_score !== undefined ? Number(result.confidence_score) : 0;
+                            this.angkaMeter = '';
+                            this.isOcrCorrected = false;
+                            this.ocrMessage = result.message || 'OCR gagal membaca angka, silakan input manual';
                             this.hitungPemakaian();
                         }
                     }

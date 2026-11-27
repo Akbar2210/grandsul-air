@@ -186,8 +186,8 @@ class OcrMeterService
             "   - Jika gambar BLUR / KABUR, REDUP / GELAP, MIRING, berbayang, tidak fokus, atau ada pantulan cahaya/silau meskipun angkanya masih bisa dibaca/ditebak: WAJIB berikan confidence RENDAH antara 55 - 68 (contoh: 67).\n".
             "5. Kembalikan HANYA format JSON valid murni (tanpa format markdown ```json) dengan struktur:\n".
             "{\"digits\": 1820, \"confidence\": 67, \"raw_text\": \"1820\", \"notes\": \"Foto blur/redup/miring\"}\n".
-            "6. Hanya jika benar-benar TIDAK ADA ANGKA SAMA SEKALI atau terlalu rusak untuk dibaca, kembalikan:\n".
-            '{"digits": null, "confidence": 0, "raw_text": "", "notes": "Tidak ditemukan angka pada foto"}';
+            "6. Jika gambar SANGAT BURAM / TIDAK TERBACA SAMA SEKALI atau benar-benar tidak ada angka yang dapat dipastikan, JANGAN MENEBAK — kembalikan:\n".
+            '{"digits": null, "confidence": 0, "raw_text": "", "notes": "OCR gagal membaca angka, silakan input manual"}';
 
         try {
             $response = Http::connectTimeout(5)
@@ -243,8 +243,8 @@ class OcrMeterService
             $cleaned = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', trim($textResponse));
             $data = json_decode($cleaned, true);
 
-            if (! is_array($data) || ! isset($data['digits']) || $data['digits'] === null) {
-                // Fallback ekstraksi regex jika model mengembalikan teks mentah dengan angka
+            if (! is_array($data)) {
+                // Fallback ekstraksi regex hanya jika model mengembalikan teks mentah (bukan JSON)
                 $fallbackDigits = $this->filterMeterDigits($textResponse);
                 if ($fallbackDigits !== null) {
                     return [
@@ -256,14 +256,16 @@ class OcrMeterService
                         'message' => 'Angka berhasil dideteksi oleh AI Gemini.',
                     ];
                 }
+            }
 
+            if (! is_array($data) || ! isset($data['digits']) || $data['digits'] === null || (isset($data['confidence']) && (float) $data['confidence'] <= 0)) {
                 return [
                     'success' => false,
                     'suggested_digits' => null,
                     'raw_text' => (string) ($data['raw_text'] ?? $textResponse),
-                    'confidence_score' => (float) ($data['confidence'] ?? 0.0),
+                    'confidence_score' => 0.0,
                     'provider' => 'gemini',
-                    'message' => (string) ($data['notes'] ?? 'Tidak ditemukan angka pada foto.'),
+                    'message' => 'OCR gagal membaca angka, silakan input manual',
                 ];
             }
 
@@ -467,7 +469,7 @@ class OcrMeterService
                     'is_unit_locked' => true,
                     'gps_unverified' => false,
                     'distance_meters' => $distance,
-                    'message' => "Lokasi tidak sesuai: Anda berjarak {$distance} m dari unit rumah ini (radius toleransi maksimal {$maxRadius} m). Kamera & OCR dinonaktifkan.",
+                    'message' => "Lokasi tidak sesuai / di luar radius unit: Anda berjarak {$distance} m dari unit rumah ini (radius toleransi maksimal {$maxRadius} m).",
                 ];
             }
 
@@ -522,6 +524,17 @@ class OcrMeterService
         bool $isOcrCorrected = false,
         bool $isFirstReading = false
     ): array {
+        // Jika OCR gagal total membaca foto (Confidence 0%), wajib ditandai untuk verifikasi Admin meski diinput manual
+        if ($confidenceScore !== null && $confidenceScore <= 0.0) {
+            $pemakaianFallback = ($isFirstReading || $angkaBulanLalu <= 0) ? 0.0 : ($angkaSekarang - $angkaBulanLalu);
+
+            return [
+                'status_verifikasi' => 'ter_flag',
+                'catatan_anomali' => 'OCR gagal membaca foto (Confidence 0%), input manual perlu tinjauan Admin',
+                'pemakaian' => $pemakaianFallback,
+            ];
+        }
+
         // Rule OCR confidence rendah berlaku untuk semua bacaan (termasuk pencatatan perdana) jika belum dikoreksi manual
         if (! $isOcrCorrected && $confidenceScore !== null && $confidenceScore < self::MIN_OCR_CONFIDENCE) {
             $pemakaianFallback = ($isFirstReading || $angkaBulanLalu <= 0) ? 0.0 : ($angkaSekarang - $angkaBulanLalu);

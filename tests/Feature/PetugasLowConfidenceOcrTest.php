@@ -137,4 +137,65 @@ class PetugasLowConfidenceOcrTest extends TestCase
         $this->assertNotEquals(1820, $misreadShort);
         $this->assertSame(1328, $misreadShort);
     }
+
+    public function test_failed_ocr_zero_confidence_with_manual_input_saves_as_ter_flag(): void
+    {
+        Role::firstOrCreate(['name' => 'petugas']);
+
+        $petugas = User::create([
+            'name' => 'Hendra (Petugas Lapangan)',
+            'email' => 'petugas_zero_'.time().'@grandsul.web.id',
+            'password' => Hash::make('password'),
+            'zona_penugasan' => 'Semua Blok (A, B, C, D, E, F)',
+            'is_active' => true,
+        ]);
+        $petugas->assignRole('petugas');
+
+        $blok = BlokHunian::create(['nama_blok' => 'Blok C']);
+        $unit = UnitHunian::create([
+            'blok_id' => $blok->id,
+            'nomor_rumah' => 'C-09',
+            'nama_pemilik' => 'Warga C 09',
+            'nomor_wa' => '081286849812',
+            'status_huni' => 'Dihuni',
+            'latitude' => -4.03107348,
+            'longitude' => 119.62739768,
+            'radius_toleransi' => 500,
+        ]);
+
+        $lastMonth = now()->subMonth();
+        BacaanMeter::create([
+            'unit_id' => $unit->id,
+            'user_id' => $petugas->id,
+            'foto_meter' => 'sample_meter.jpg',
+            'bulan' => $lastMonth->month,
+            'tahun' => $lastMonth->year,
+            'angka_meter_bulanlalu' => 1680,
+            'angka_meter' => 1700,
+            'status_verifikasi' => 'valid',
+            'confidence_score' => 96,
+        ]);
+
+        $response = $this->actingAs($petugas)->post(route('petugas.pindai.store'), [
+            'unit_id' => $unit->id,
+            'angka_meter' => 1715,
+            'latitude' => -4.03107348,
+            'longitude' => 119.62739768,
+            'confidence_score' => 0,
+            'is_ocr_corrected' => '1',
+        ]);
+
+        $response->assertRedirect();
+
+        $bacaan = BacaanMeter::where('unit_id', $unit->id)
+            ->where('bulan', now()->month)
+            ->where('tahun', now()->year)
+            ->first();
+
+        $this->assertNotNull($bacaan);
+        $this->assertEquals(1715, $bacaan->angka_meter);
+        $this->assertEquals('ter_flag', $bacaan->status_verifikasi);
+        $this->assertEquals(0.0, (float) $bacaan->confidence_score);
+        $this->assertStringContainsString('Confidence 0%', (string) $bacaan->catatan_anomali);
+    }
 }
