@@ -171,7 +171,7 @@
                 </select>
 
                 <select name="status" class="pl-3.5 pr-10 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] shadow-xs">
-                    <option value="">Semua Status Huni</option>
+                    <option value="">Semua</option>
                     <option value="Dihuni" {{ request('status') == 'Dihuni' ? 'selected' : '' }}>Dihuni</option>
                     <option value="Kosong" {{ request('status') == 'Kosong' ? 'selected' : '' }}>Kosong</option>
                 </select>
@@ -529,9 +529,11 @@
 
     </div>
 
+    <template x-teleport="body">
+    <div>
     {{-- ==================== MODAL TAMBAH UNIT ==================== --}}
     <div x-show="addUnitModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -539,7 +541,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="addUnitModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="addUnitModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Tambah Unit Hunian Baru</h3>
@@ -593,7 +595,7 @@
 
     {{-- ==================== MODAL TAMBAH TARIF ==================== --}}
     <div x-show="addTarifModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -601,7 +603,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="addTarifModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="addTarifModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Tambah Skema Tarif Progresif</h3>
@@ -653,7 +655,7 @@
 
     {{-- ==================== MODAL KELOLA / EDIT UNIT ==================== --}}
     <div x-show="editUnitModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -661,7 +663,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="editUnitModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="editUnitModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Kelola & Edit Data Unit</h3>
@@ -735,7 +737,7 @@
 
     {{-- ==================== MODAL IMPORT EXCEL / CSV ==================== --}}
     <div x-show="importModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -743,7 +745,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="importModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="importModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Import Data Unit (Excel / CSV)</h3>
@@ -792,7 +794,7 @@
 
     {{-- ==================== MODAL EDIT SKEMA TARIF ==================== --}}
     <div x-show="editTarifModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -800,7 +802,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="editTarifModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="editTarifModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Edit Skema Tarif Progresif</h3>
@@ -864,7 +866,7 @@
 
     {{-- ==================== MODAL TAMBAH PETUGAS LAPANGAN ==================== --}}
     <div x-show="addPetugasModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -872,7 +874,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="addPetugasModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="addPetugasModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Tambah Petugas Lapangan Baru</h3>
@@ -957,7 +959,7 @@
 
     {{-- ==================== MODAL KELOLA / EDIT PETUGAS ==================== --}}
     <div x-show="editPetugasModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -965,7 +967,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="editPetugasModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="editPetugasModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Kelola Akun & Penugasan Petugas</h3>
@@ -1072,7 +1074,7 @@
 
     {{-- ==================== MODAL TAMBAH BLOK HUNIAN ==================== --}}
     <div x-show="addBlokModal"
-         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-10 overflow-y-auto bg-[#0F172A]/50 backdrop-blur-xs"
+         class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
          style="display: none;"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"
@@ -1080,7 +1082,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 transform scale-100"
          x-transition:leave-end="opacity-0 transform scale-95">
-        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full p-6 sm:p-8 mb-8" @click.away="addBlokModal = false">
+        <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="addBlokModal = false">
             <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
                 <div>
                     <h3 class="text-base font-bold text-[#0F172A]">Tambah Blok Hunian Baru</h3>
@@ -1117,6 +1119,8 @@
             </form>
         </div>
     </div>
+    </div>
+    </template>
 
 </div>
 @endsection

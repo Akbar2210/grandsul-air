@@ -10,7 +10,6 @@ use App\Models\TarifAir;
 use App\Models\UnitHunian;
 use App\Models\User;
 use App\Services\BatchProcessing\BatchTagihanService;
-use App\Services\BatchProcessing\TarifProgresifService;
 use App\Services\BisnisDigital\OcrMeterService;
 use App\Services\CyberSecurity\QrVerificationService;
 use App\Services\CyberSecurity\RsaSignatureService;
@@ -46,15 +45,15 @@ class KonsentrasiServicesTest extends TestCase
         $nol = $ocrService->evaluateReadingAnomaly(1550, 1550, 88.0, 'Dihuni');
         $this->assertSame('ter_flag', $nol['status_verifikasi']);
 
-        // Validasi Geofencing GPS (Titik pusat: -4.007468, 119.661131 | Radius: 700 meter)
-        $dalamRadius = $ocrService->validateGpsLocation(-4.008500, 119.662000);
+        // Validasi Geofencing GPS Unit (Titik unit: -4.007468, 119.661131 | Radius: 50 meter)
+        $dalamRadius = $ocrService->validateGpsLocation(-4.007500, 119.661200, -4.007468, 119.661131, 50.0);
         $this->assertTrue($dalamRadius['is_valid']);
-        $this->assertLessThanOrEqual(700.0, $dalamRadius['distance_meters']);
+        $this->assertLessThanOrEqual(50.0, $dalamRadius['distance_meters']);
 
-        // Di luar radius (> 700 meter dari pusat kawasan)
-        $luarRadius = $ocrService->validateGpsLocation(-4.020000, 119.670000);
+        // Di luar radius (> 50 meter dari titik unit)
+        $luarRadius = $ocrService->validateGpsLocation(-4.020000, 119.670000, -4.007468, 119.661131, 50.0);
         $this->assertFalse($luarRadius['is_valid']);
-        $this->assertGreaterThan(700.0, $luarRadius['distance_meters']);
+        $this->assertGreaterThan(50.0, $luarRadius['distance_meters']);
 
         // GPS tidak aktif (null)
         $tanpaGps = $ocrService->validateGpsLocation(null, null);
@@ -63,15 +62,15 @@ class KonsentrasiServicesTest extends TestCase
 
     public function test_batch_processing_tarif_progresif_and_batch_billing(): void
     {
-        $tarifService = new TarifProgresifService;
+        $batchService = app(BatchTagihanService::class);
 
-        // DATA-04: 14 m³ -> (10 × 2000) + (4 × 3000) = Rp 32.000
-        $hasil14 = $tarifService->hitungTagihanProgresif(14);
-        $this->assertSame(32000.0, $hasil14['total_tagihan']);
+        // DATA-04: 14 m³ -> (10 × 2000) + (4 × 3000) + 11.000 admin = Rp 43.000
+        $hasil14 = $batchService->hitungTagihanProgresif(14);
+        $this->assertSame(43000.0, $hasil14['total_tagihan']);
 
-        // 25 m³ -> Blok 1 (10 × 2000) + Blok 2 (10 × 3000) + Blok 3 (5 × 5000) = Rp 75.000
-        $hasil25 = $tarifService->hitungTagihanProgresif(25);
-        $this->assertSame(75000.0, $hasil25['total_tagihan']);
+        // 25 m³ -> Blok 1 (10 × 2000) + Blok 2 (10 × 3000) + Blok 3 (5 × 5000) + 11.000 admin = Rp 86.000
+        $hasil25 = $batchService->hitungTagihanProgresif(25);
+        $this->assertSame(86000.0, $hasil25['total_tagihan']);
 
         $user = User::factory()->create();
         $blok = BlokHunian::create(['nama_blok' => 'Blok A', 'keterangan_wilayah' => 'Sektor A']);
@@ -81,6 +80,13 @@ class KonsentrasiServicesTest extends TestCase
             'nama_pemilik' => 'Nur Hidayah',
             'nomor_wa' => '081234567804',
             'status_huni' => 'Dihuni',
+        ]);
+
+        TarifAir::create([
+            'blok_konsumsi' => '0 - 10 m³',
+            'batas_bawah' => 0,
+            'batas_atas' => 10,
+            'tarif_per_m3' => 2000,
         ]);
 
         BacaanMeter::create([
@@ -103,7 +109,7 @@ class KonsentrasiServicesTest extends TestCase
             'unit_id' => $unit->id,
             'priode' => '2026-11',
             'volume_pemakaian' => 14,
-            'total_tagihan' => 32000,
+            'total_tagihan' => 43000,
         ]);
     }
 
@@ -163,11 +169,11 @@ class KonsentrasiServicesTest extends TestCase
         // Verifikasi nota asli
         $verifyValid = $qrVerifyService->verifyScannedReceipt($pembayaran->id, $issued['hash_sha256']);
         $this->assertTrue($verifyValid['is_authentic']);
-        $this->assertSame('NOTA ASLI & SAH', $verifyValid['status_label']);
+        $this->assertSame('NOTA ASLI & SAH (LUNAS)', $verifyValid['status_label']);
         $this->assertSame('A-12 - Budi S.', $verifyValid['data_nota']['unit_penghuni']);
 
-        // Manipulasi nominal pembayaran di database setelah ditandatangani -> harus terdeteksi TIDAK VALID
-        $pembayaran->update(['jumlah_bayar' => 15000]);
+        // Manipulasi nominal tagihan di database setelah ditandatangani -> harus terdeteksi TIDAK VALID
+        $tagihan->update(['total_tagihan' => 15000]);
         $verifyTampered = $qrVerifyService->verifyScannedReceipt($pembayaran->id, $issued['hash_sha256']);
         $this->assertFalse($verifyTampered['is_authentic']);
     }
@@ -221,7 +227,7 @@ class KonsentrasiServicesTest extends TestCase
             ->assertSee('NOTA ASLI &amp; SAH', false)
             ->assertSee('Budi S.');
 
-        $pembayaran->update(['jumlah_bayar' => 15000]);
+        $tagihan->update(['total_tagihan' => 15000]);
 
         $this->get($scannedPath)
             ->assertOk()

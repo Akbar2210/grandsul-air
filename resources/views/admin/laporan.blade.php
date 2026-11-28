@@ -5,7 +5,142 @@
 @section('page-subtitle', $mode === 'harian' ? 'Pelaporan transaksi pembayaran dan pencatatan meter per hari (' . $tanggalFormatted . ')' : 'Rekapitulasi berkas tagihan, volume konsumsi air per blok, dan tingkat efisiensi koleksi')
 
 @section('content')
-<div class="space-y-5">
+<style>
+    .print-only {
+        display: none;
+    }
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 12mm 13mm 12mm 13mm;
+        }
+        aside,
+        #app-topbar,
+        .no-print {
+            display: none !important;
+        }
+        body,
+        main,
+        div[class*="lg:pl-"] {
+            background: #FFFFFF !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .print-only {
+            display: block !important;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #0F172A;
+            font-size: 9.5px;
+            line-height: 1.35;
+        }
+        .print-only .header-box {
+            border-bottom: 2.5px solid #0F172A;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .print-only .header-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #0F172A;
+            margin: 0;
+        }
+        .print-only .header-sub {
+            font-size: 9.5px;
+            color: #475569;
+            margin: 3px 0 0 0;
+        }
+        .print-only .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            font-size: 9.5px;
+        }
+        .print-only .meta-table td {
+            padding: 2px 0;
+        }
+        .print-only .summary-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 6px 0;
+            margin: 0 -6px 12px -6px;
+        }
+        .print-only .summary-card {
+            border: 1px solid #CBD5E1;
+            background: #F8FAFC;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
+        .print-only .summary-label {
+            font-size: 8px;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+            margin: 0 0 3px 0;
+        }
+        .print-only .summary-value {
+            font-size: 12.5px;
+            font-weight: bold;
+            font-family: monospace;
+            color: #0F172A;
+            margin: 0;
+        }
+        .print-only .summary-value.paid { color: #059669; }
+        .print-only .summary-value.unpaid { color: #DC2626; }
+        .print-only .summary-foot {
+            font-size: 8px;
+            color: #64748B;
+            margin: 3px 0 0 0;
+        }
+        .print-only .section-heading {
+            font-size: 10px;
+            font-weight: bold;
+            color: #0F172A;
+            margin: 0 0 5px 0;
+        }
+        .print-only .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.8px;
+        }
+        .print-only .data-table th {
+            background: #0F172A !important;
+            color: #FFFFFF !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 5px;
+            border: 1px solid #0F172A;
+        }
+        .print-only .data-table td {
+            padding: 4.5px 5px;
+            border: 1px solid #CBD5E1;
+        }
+        .print-only .data-table tfoot td {
+            background: #E2E8F0 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-weight: bold;
+            border-top: 2px solid #0F172A;
+            padding: 5px;
+        }
+        .print-only .text-left { text-align: left; }
+        .print-only .text-center { text-align: center; }
+        .print-only .text-right { text-align: right; }
+        .print-only .mono { font-family: monospace; }
+        .print-only .text-paid { color: #059669; font-weight: bold; }
+        .print-only .text-unpaid { color: #DC2626; font-weight: bold; }
+        .print-only .footer {
+            margin-top: 12px;
+            padding-top: 6px;
+            border-top: 1px solid #CBD5E1;
+            font-size: 8.5px;
+            color: #64748B;
+        }
+    }
+</style>
+
+<div class="space-y-5 no-print">
 
     {{-- ==================== TAB MODE LAPORAN: BULANAN vs HARIAN (PER HARI) ==================== --}}
     <div class="bg-white border border-[#CBD5E1] rounded-2xl p-2.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
@@ -27,9 +162,11 @@
                     <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"></path>
                     <rect x="6" y="14" width="12" height="8"></rect>
                 </svg>
-                <span>Cetak Layar</span>
+                <span>Cetak Laporan</span>
             </button>
-            <a href="{{ route('admin.laporan.pdf', ['bulan' => $selectedBulan, 'tahun' => $selectedTahun, 'blok' => $selectedBlok, 'status' => $selectedStatus]) }}"
+            <a href="{{ $mode === 'harian'
+                ? route('admin.laporan.pdf', ['mode' => 'harian', 'tanggal' => $selectedTanggal, 'blok' => $selectedBlok])
+                : route('admin.laporan.pdf', ['mode' => 'bulanan', 'bulan' => $selectedBulan, 'tahun' => $selectedTahun, 'blok' => $selectedBlok, 'status' => $selectedStatus]) }}"
                class="px-4 py-2 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-xs">
                 <svg class="w-4 h-4 text-[#00F2FE]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                 <span>Cetak PDF</span>
@@ -449,5 +586,14 @@
 
     @endif
 
+</div>
+
+{{-- ==================== VERSI CETAK LAPORAN (1 HALAMAN A4 IDENTIK PDF) ==================== --}}
+<div class="print-only">
+    @if($mode === 'harian')
+        @include('admin.partials.laporan-harian-cetak')
+    @else
+        @include('admin.partials.laporan-bulanan-cetak')
+    @endif
 </div>
 @endsection

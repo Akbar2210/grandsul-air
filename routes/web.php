@@ -90,10 +90,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::match(['put', 'patch', 'delete'], '/audit/{id}', fn () => abort(403, 'Audit log bersifat immutable (tidak dapat diubah atau dihapus).'))->name('audit.immutable');
     Route::match(['put', 'patch', 'delete'], '/audit-log/{id}', fn () => abort(403, 'Audit log bersifat immutable (tidak dapat diubah atau dihapus).'))->name('audit-log.immutable');
 
-    // 9. Notifikasi Sistem Interaktif
+    // 9. Notifikasi Sistem Interaktif & Profil Admin
     Route::get('/notifikasi/unread-list', [AdminDashboardController::class, 'getUnreadNotifikasi'])->name('notifikasi.unread-list');
     Route::post('/notifikasi/read-all', [AdminDashboardController::class, 'readAllNotifikasi'])->name('notifikasi.read-all');
     Route::post('/notifikasi/{id}/read', [AdminDashboardController::class, 'readNotifikasi'])->name('notifikasi.read');
+    Route::post('/profile', [AdminDashboardController::class, 'updateProfile'])->name('profile.update');
 });
 
 // Petugas Routes (Protected with RBAC role:petugas|admin untuk mendukung simulasi multi-peran)

@@ -17,7 +17,6 @@
 
     <!-- Styles & Scripts via Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
         body {
@@ -840,7 +839,7 @@
                 const canvas = document.getElementById('camera_canvas');
                 if (!video || !canvas) return;
 
-                const maxDim = 960;
+                const maxDim = 720;
                 let width = video.videoWidth || 640;
                 let height = video.videoHeight || 480;
                 if (width > maxDim || height > maxDim) {
@@ -858,7 +857,7 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, width, height);
 
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.60);
                 this.photoPreview = dataUrl;
 
                 canvas.toBlob((blob) => {
@@ -872,7 +871,7 @@
                         } catch (e) {}
                         this.runOcrProcess();
                     }
-                }, 'image/jpeg', 0.72);
+                }, 'image/jpeg', 0.60);
 
                 this.stopLiveCamera();
             },
@@ -891,7 +890,7 @@
                     const img = new Image();
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const maxDim = 960;
+                        const maxDim = 720;
                         let w = img.width;
                         let h = img.height;
                         if (w > maxDim || h > maxDim) {
@@ -908,7 +907,7 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, w, h);
 
-                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.60);
                         this.photoPreview = compressedDataUrl;
 
                         canvas.toBlob((blob) => {
@@ -922,7 +921,7 @@
                                 } catch (err) {}
                                 this.runOcrProcess();
                             }
-                        }, 'image/jpeg', 0.72);
+                        }, 'image/jpeg', 0.60);
                     };
                     img.onerror = () => {
                         this.photoFile = file;

@@ -198,7 +198,7 @@
     </script>
     @stack('styles')
 </head>
-<body class="bg-[#F1F5F9] font-sans text-[#1E293B] antialiased" x-data="{ sidebarOpen: false }">
+<body class="bg-[#F1F5F9] font-sans text-[#1E293B] antialiased" x-data="{ sidebarOpen: false, profileModal: {{ old('_profile_modal') && $errors->any() ? 'true' : 'false' }} }">
 
     {{-- Mobile Overlay Drawer --}}
     <div
@@ -210,7 +210,7 @@
         x-transition:leave="transition-opacity ease-linear duration-200"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        class="fixed inset-0 bg-[#0B1E3D]/50 backdrop-blur-xs z-40 lg:hidden"
+        class="fixed inset-0 bg-[#0B1E3D]/50 z-40 lg:hidden"
         style="display: none;"
     ></div>
 
@@ -472,7 +472,7 @@
                     </div>
 
                     {{-- Profil Avatar Admin (Bundar Sesuai Permintaan) --}}
-                    <div class="flex items-center gap-3">
+                    <button type="button" @click="profileModal = true" title="Edit Profil Admin" class="flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-[#F8FAFC] transition-colors cursor-pointer">
                         <div class="w-9 h-9 rounded-full bg-[#0F172A] text-white font-mono font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-[#0F172A]/10">
                             {{ strtoupper(substr(Auth::user()->name ?? 'AD', 0, 2)) }}
                         </div>
@@ -483,12 +483,12 @@
                             </div>
                             <span class="text-[10px] text-[#64748B] font-medium block">Administrator Utama</span>
                         </div>
-                    </div>
+                    </button>
                 </div>
             </header>
 
             {{-- KONTEN HALAMAN --}}
-            <main class="flex-1 px-4 sm:px-6 lg:px-10 pt-4 pb-6 sm:pt-5 sm:pb-8 bg-[#F1F5F9] content-dissolve">
+            <main class="flex-1 px-4 sm:px-6 lg:px-10 pt-4 pb-6 sm:pt-5 sm:pb-8 bg-[#F1F5F9]">
 
                 {{-- Flash Messages --}}
                 @if(session('success'))
@@ -516,6 +516,77 @@
             </main>
         </div>
     </div>
+
+    {{-- Modal Edit Profil Admin --}}
+    <template x-teleport="body">
+        <div x-show="profileModal"
+             class="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0F172A]/60"
+             style="display: none;"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0">
+            <div class="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8" @click.away="profileModal = false">
+                <div class="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
+                    <div>
+                        <h3 class="text-base font-bold text-[#0F172A]">Profil Administrator</h3>
+                        <p class="text-xs text-[#64748B]">Perbarui username, email login, atau password akun Admin</p>
+                    </div>
+                    <button type="button" @click="profileModal = false" class="text-[#94A3B8] hover:text-[#0F172A] p-1 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                @if(old('_profile_modal') && $errors->any())
+                    <div class="mt-4 p-3 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-xs text-[#DC2626] space-y-1">
+                        @foreach($errors->all() as $err)
+                            <p>• {{ $err }}</p>
+                        @endforeach
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('admin.profile.update') }}" class="mt-4 space-y-4 text-xs">
+                    @csrf
+                    <input type="hidden" name="_profile_modal" value="1">
+
+                    <div>
+                        <label class="block font-bold text-[#0F172A] mb-1">Username / Nama Tampilan <span class="text-[#DC2626]">*</span></label>
+                        <input type="text" name="name" required value="{{ old('_profile_modal') ? old('name') : (Auth::user()->name ?? '') }}"
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-[#0F172A] mb-1">Email / Username Login <span class="text-[#DC2626]">*</span></label>
+                        <input type="text" name="email" required value="{{ old('_profile_modal') ? old('email') : (Auth::user()->email ?? '') }}"
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-[#0F172A] mb-1">Password Baru <span class="text-[#64748B] font-normal">(Opsional)</span></label>
+                        <input type="password" name="password" minlength="6" placeholder="Kosongkan jika tidak ingin mengubah password"
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-[#0F172A] mb-1">Konfirmasi Password Baru</label>
+                        <input type="password" name="password_confirmation" minlength="6" placeholder="Ulangi password baru"
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-xs text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]">
+                    </div>
+
+                    <div class="pt-4 flex items-center justify-end gap-3 border-t border-[#F1F5F9]">
+                        <button type="button" @click="profileModal = false" class="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] font-bold text-xs cursor-pointer">
+                            Batal
+                        </button>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs cursor-pointer">
+                            Simpan Profil
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
 
     @stack('scripts')
 </body>

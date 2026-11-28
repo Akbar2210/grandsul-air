@@ -11,19 +11,15 @@
                 <img
                     src="{{ asset('images/bg-login.jpg') }}"
                     alt="Kantor Grand Sulawesi"
-                    class="w-full h-full object-cover object-center opacity-20 filter brightness-75 contrast-105"
+                    class="w-full h-full object-cover object-center opacity-20"
                 />
                 {{-- Lapisan Gradien Navy agar foto menyatu halus dengan tema #0B132B dan tidak terlalu kentara --}}
-                <div class="absolute inset-0 bg-gradient-to-b from-[#0B132B]/85 via-[#0B132B]/60 to-[#0B132B]/90"></div>
+                <div class="absolute inset-0 bg-gradient-to-b from-[#0B132B]/85 via-[#0B132B]/65 to-[#0B132B]/90"></div>
             </div>
 
-            {{-- Detail Grafis Tipis Aksen Cyan (#00F2FE) Sesuai Panduan --}}
-            <div class="absolute -top-24 -left-24 w-96 h-96 bg-[#00F2FE]/10 rounded-full blur-3xl pointer-events-none z-1"></div>
-            <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-[#00F2FE]/8 rounded-full blur-3xl pointer-events-none z-1"></div>
-
             {{-- Logo Grand Sulawesi Group Besar --}}
-            <div class="w-full max-w-lg xl:max-w-xl flex items-center justify-center p-6 relative z-10 transition-transform duration-500 hover:scale-[1.02]">
-                <x-login-logo-white class="w-full h-auto max-h-[74vh] object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]" />
+            <div class="w-full max-w-lg xl:max-w-xl flex items-center justify-center p-6 relative z-10">
+                <x-login-logo-white class="w-full h-auto max-h-[74vh] object-contain" />
             </div>
         </div>
 

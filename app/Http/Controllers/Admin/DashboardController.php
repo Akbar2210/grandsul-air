@@ -13,7 +13,6 @@ use App\Models\TarifAir;
 use App\Models\UnitHunian;
 use App\Models\User;
 use App\Services\BatchProcessing\BatchTagihanService;
-use App\Services\BatchProcessing\SuratTunggakanService;
 use App\Services\CyberSecurity\RsaSignatureService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -502,7 +501,7 @@ class DashboardController extends Controller
     /**
      * Daftar Surat Penyampaian Otomatis untuk Unit Menunggak >= 4 Bulan
      */
-    public function suratTunggakan(SuratTunggakanService $suratService)
+    public function suratTunggakan(BatchTagihanService $suratService)
     {
         $now = Carbon::now();
         $periodeStr = $now->translatedFormat('F Y');
@@ -515,7 +514,7 @@ class DashboardController extends Controller
     /**
      * Cetak / Unduh PDF Surat Penyampaian Resmi (Template PT. Arista Jaya) via DomPDF
      */
-    public function cetakSuratTunggakan(int $unitId, SuratTunggakanService $suratService)
+    public function cetakSuratTunggakan(int $unitId, BatchTagihanService $suratService)
     {
         $surat = $suratService->getSuratUntukUnit($unitId);
 
@@ -823,18 +822,35 @@ class DashboardController extends Controller
     {
         $now = Carbon::now();
         $mode = $request->get('mode', 'bulanan'); // bulanan | harian
-        $selectedTanggal = $request->get('tanggal', $now->format('Y-m-d'));
-        $tanggalFormatted = Carbon::parse($selectedTanggal)->translatedFormat('d F Y');
 
         $bulanan = $this->buildLaporanBulananData($request);
-        $selectedBlok = $bulanan['selectedBlok'];
+        $harian = $this->buildLaporanHarianData($request, $bulanan['selectedBlok']);
+        $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
 
-        // Data Laporan Harian (Per Hari)
+        return view('admin.laporan', array_merge($bulanan, $harian, [
+            'mode' => $mode,
+            'totalTerflagCount' => $totalTerflagCount,
+        ]));
+    }
+
+    /**
+     * Menyusun data Laporan Harian (Per Hari) untuk tampilan layar, cetak laporan, dan PDF.
+     */
+    private function buildLaporanHarianData(Request $request, ?int $selectedBlok = null): array
+    {
+        $now = Carbon::now();
+        $selectedTanggal = $request->get('tanggal', $now->format('Y-m-d'));
+        $tanggalFormatted = Carbon::parse($selectedTanggal)->translatedFormat('d F Y');
+        $selectedBlokId = $selectedBlok ?? ($request->filled('blok') ? (int) $request->get('blok') : null);
+        $selectedBlokName = $selectedBlokId
+            ? (BlokHunian::find($selectedBlokId)?->nama_blok ?? 'Semua Blok')
+            : 'Semua Blok';
+
         $pembayaranHarian = Pembayaran::with(['tagihan.unit.blok'])
             ->whereDate('tgl_bayar', $selectedTanggal)
-            ->when($selectedBlok, function ($q) use ($selectedBlok) {
-                $q->whereHas('tagihan.unit', function ($u) use ($selectedBlok) {
-                    $u->where('blok_id', $selectedBlok);
+            ->when($selectedBlokId, function ($q) use ($selectedBlokId) {
+                $q->whereHas('tagihan.unit', function ($u) use ($selectedBlokId) {
+                    $u->where('blok_id', $selectedBlokId);
                 });
             })
             ->latest('created_at')
@@ -842,9 +858,9 @@ class DashboardController extends Controller
 
         $bacaanHarian = BacaanMeter::with(['unit.blok', 'petugas'])
             ->whereDate('created_at', $selectedTanggal)
-            ->when($selectedBlok, function ($q) use ($selectedBlok) {
-                $q->whereHas('unit', function ($u) use ($selectedBlok) {
-                    $u->where('blok_id', $selectedBlok);
+            ->when($selectedBlokId, function ($q) use ($selectedBlokId) {
+                $q->whereHas('unit', function ($u) use ($selectedBlokId) {
+                    $u->where('blok_id', $selectedBlokId);
                 });
             })
             ->latest('created_at')
@@ -857,12 +873,10 @@ class DashboardController extends Controller
         $harianJumlahBacaan = $bacaanHarian->count();
         $harianTotalVolume = (float) $bacaanHarian->sum(fn ($b) => max(0, (float) $b->angka_meter - (float) $b->angka_meter_bulanlalu));
 
-        $totalTerflagCount = BacaanMeter::where('status_verifikasi', 'ter_flag')->count();
-
-        return view('admin.laporan', array_merge($bulanan, [
-            'mode' => $mode,
+        return [
             'selectedTanggal' => $selectedTanggal,
             'tanggalFormatted' => $tanggalFormatted,
+            'selectedBlokName' => $selectedBlokName,
             'pembayaranHarian' => $pembayaranHarian,
             'bacaanHarian' => $bacaanHarian,
             'harianTotalMasuk' => $harianTotalMasuk,
@@ -871,15 +885,40 @@ class DashboardController extends Controller
             'harianJumlahTransaksi' => $harianJumlahTransaksi,
             'harianJumlahBacaan' => $harianJumlahBacaan,
             'harianTotalVolume' => $harianTotalVolume,
-            'totalTerflagCount' => $totalTerflagCount,
-        ]));
+        ];
     }
 
     /**
-     * Ekspor Laporan Bulanan ke PDF via DomPDF (dengan pencegahan cetak PDF kosong)
+     * Ekspor Laporan (Bulanan atau Harian) ke PDF via DomPDF (dengan pencegahan cetak PDF kosong)
      */
     public function exportLaporanPdf(Request $request)
     {
+        $mode = $request->get('mode', 'bulanan');
+
+        if ($mode === 'harian') {
+            $data = $this->buildLaporanHarianData($request);
+
+            if ($data['harianJumlahTransaksi'] === 0 && $data['harianJumlahBacaan'] === 0) {
+                return redirect()
+                    ->route('admin.laporan', $request->query())
+                    ->with('error', 'Tidak ada data transaksi atau pencatatan pada tanggal terpilih');
+            }
+
+            $filename = "Laporan_Harian_{$data['selectedTanggal']}.pdf";
+
+            AuditLog::create([
+                'user_id' => Auth::id(),
+                'aktivitas' => "Mengekspor laporan harian tanggal {$data['tanggalFormatted']} format PDF ({$filename})",
+                'ip_address' => $request->ip(),
+                'timestamp' => Carbon::now(),
+            ]);
+
+            $pdf = Pdf::loadView('admin.laporan-harian-pdf', $data)
+                ->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename);
+        }
+
         $data = $this->buildLaporanBulananData($request);
 
         // Pencegahan cetak PDF kosong jika periode belum memiliki data transaksi (TC_059)
@@ -1588,5 +1627,47 @@ class DashboardController extends Controller
         $notif->save();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Perbarui profil akun Admin (nama/username, email, dan password opsional)
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'max:255', 'unique:users,email,'.$user->id],
+            'password' => ['nullable', 'string', 'min:6', 'confirmed'],
+        ], [
+            'name.required' => 'Nama / Username wajib diisi.',
+            'email.required' => 'Email login wajib diisi.',
+            'email.unique' => 'Email / username tersebut sudah digunakan akun lain.',
+            'password.min' => 'Password baru minimal 6 karakter.',
+            'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
+        ]);
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $passwordChanged = false;
+
+        if ($request->filled('password')) {
+            $user->password = Hash::make($validated['password']);
+            $passwordChanged = true;
+        }
+
+        $user->save();
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'aktivitas' => $passwordChanged
+                ? "Memperbarui profil & password akun Admin ({$user->email})"
+                : "Memperbarui profil akun Admin ({$user->email})",
+            'ip_address' => $request->ip(),
+            'timestamp' => Carbon::now(),
+        ]);
+
+        return back()->with('success', 'Profil Admin berhasil diperbarui.');
     }
 }

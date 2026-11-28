@@ -182,7 +182,7 @@
                         </div>
                         @endif
 
-                        <div class="mt-4 w-full bg-black/60 backdrop-blur-xs rounded-xl p-2.5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-[#CBD5E1] gap-1 font-mono tabular-nums">
+                        <div class="mt-4 w-full bg-black/75 rounded-xl p-2.5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-[#CBD5E1] gap-1 font-mono tabular-nums">
                             <span class="flex items-center gap-1">
                                 <svg class="w-3.5 h-3.5 text-[#60A5FA]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
                                 GPS: {{ $selected->latitude ?? '-4.007468' }}, {{ $selected->longitude ?? '119.661131' }}

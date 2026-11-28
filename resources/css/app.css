@@ -313,30 +313,28 @@
     .donut-arc-sweep {
         stroke-dasharray: 100;
         stroke-dashoffset: 100;
-        animation: donutArcSweep 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+        animation: donutArcSweep 0.25s ease-out forwards;
     }
 
     .donut-sep-in {
         opacity: 0;
-        animation: donutSepFade 0.15s ease-out forwards;
+        animation: donutSepFade 0.1s ease-out forwards;
     }
 
     .animate-donut-navy {
         stroke-dasharray: 238.76;
         stroke-dashoffset: 238.76;
-        animation: donutSweepNavy 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: donutSweepNavy 0.35s ease-out forwards;
     }
     .animate-donut-blue {
         stroke-dasharray: 238.76;
         stroke-dashoffset: 238.76;
-        animation: donutSweepBlue 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s
-            forwards;
+        animation: donutSweepBlue 0.35s ease-out 0.05s forwards;
     }
     .animate-donut-gray {
         stroke-dasharray: 238.76;
         stroke-dashoffset: 238.76;
-        animation: donutSweepGray 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s
-            forwards;
+        animation: donutSweepGray 0.3s ease-out 0.1s forwards;
     }
 
     @keyframes drawSplinePath {
@@ -471,54 +469,45 @@
 }
 
 ::view-transition-old(master-tab-panel) {
-    animation: 160ms cubic-bezier(0.4, 0, 1, 1) both tabSlideUpOut;
+    animation: 100ms ease-in both tabSlideUpOut;
 }
 
 ::view-transition-new(master-tab-panel) {
-    animation: 380ms cubic-bezier(0.16, 1, 0.3, 1) both tabSlideUpIn;
+    animation: 160ms ease-out both tabSlideUpIn;
 }
 
 .tab-slide-up {
-    animation: tabSlideUpIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: tabSlideUpIn 0.16s ease-out both;
 }
 
 @keyframes dissolve-out {
     0% {
         opacity: 1;
-        filter: blur(0px);
     }
     100% {
         opacity: 0;
-        filter: blur(1.5px);
     }
 }
 
 @keyframes dissolve-in {
     0% {
         opacity: 0;
-        transform: translateY(6px);
-        filter: blur(1.5px);
     }
     100% {
         opacity: 1;
-        transform: translateY(0);
-        filter: blur(0px);
     }
 }
 
-/* Animasi Dissolve Universal untuk Konten Halaman (<main>) */
+/* Animasi Dissolve Ringan untuk Konten Halaman (<main>) */
 @keyframes contentDissolveIn {
     0% {
         opacity: 0;
-        transform: translateY(8px);
     }
     100% {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
 .content-dissolve {
-    animation: contentDissolveIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    will-change: opacity, transform;
+    animation: contentDissolveIn 0.15s ease-out forwards;
 }

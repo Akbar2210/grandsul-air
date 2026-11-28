@@ -304,7 +304,7 @@
                     $tooltipLeftPct = min(88, max(12, round((($activeIndex + 0.5) / 12) * 100, 1)));
                 @endphp
 
-                <div class="relative h-52 pt-1">
+                <div class="relative h-52 pt-1" x-data="{ activeNode: null }">
                     {{-- Sumbu Y (5 Garis Referensi) --}}
                     <div class="absolute inset-0 bottom-10 flex flex-col justify-between pointer-events-none text-[11px] text-[#334155] font-mono font-semibold tabular-nums">
                         @for($step = 4; $step >= 0; $step--)
@@ -318,6 +318,7 @@
 
                     {{-- Area Grafik SVG 12 Bulan --}}
                     <div class="absolute inset-0 pl-11 pr-1 pt-2 pb-10">
+                        <div class="relative w-full h-full">
                         <svg class="w-full h-full overflow-visible" viewBox="0 0 720 156" preserveAspectRatio="none">
                             <defs>
                                 <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
@@ -346,25 +347,39 @@
 
                             {{-- Titik Data Tiap Bulan --}}
                             @foreach($points as $idx => $pt)
-                                <circle cx="{{ $pt['x'] }}" cy="{{ $pt['y'] }}"
-                                        r="{{ $pt['is_current'] ? '5.5' : ($pt['has_data'] ? '4' : '3') }}"
-                                        fill="#FFFFFF"
-                                        stroke="{{ $pt['has_data'] || $pt['is_current'] ? '#2563EB' : '#94A3B8' }}"
-                                        stroke-width="{{ $pt['is_current'] ? '3' : '2' }}"
-                                        class="spline-node"
-                                        style="animation-delay: {{ number_format(0.08 + $idx * 0.08, 2, '.', '') }}s;">
-                                    <title>{{ $pt['bulan'] }}: {{ number_format($pt['volume'], 0, ',', '.') }} m³</title>
-                                </circle>
+                                @php
+                                    $nodeLeftPct = min(92, max(8, round(($pt['x'] / 720) * 100, 2)));
+                                    $nodeTopPct = round(($pt['y'] / 156) * 100, 2);
+                                    $nodeVol = number_format($pt['volume'], 0, ',', '.');
+                                @endphp
+                                <g class="cursor-pointer"
+                                   @mouseenter="activeNode = { bulan: '{{ $pt['bulan'] }}', volume: '{{ $nodeVol }}', leftPct: {{ $nodeLeftPct }}, topPct: {{ $nodeTopPct }} }"
+                                   @mouseleave="activeNode = null"
+                                   @click="activeNode = (activeNode && activeNode.bulan === '{{ $pt['bulan'] }}') ? null : { bulan: '{{ $pt['bulan'] }}', volume: '{{ $nodeVol }}', leftPct: {{ $nodeLeftPct }}, topPct: {{ $nodeTopPct }} }">
+                                    <circle cx="{{ $pt['x'] }}" cy="{{ $pt['y'] }}" r="12" fill="transparent" />
+                                    <circle cx="{{ $pt['x'] }}" cy="{{ $pt['y'] }}"
+                                            r="{{ $pt['is_current'] ? '5.5' : ($pt['has_data'] ? '4' : '3') }}"
+                                            fill="#FFFFFF"
+                                            stroke="{{ $pt['has_data'] || $pt['is_current'] ? '#2563EB' : '#94A3B8' }}"
+                                            stroke-width="{{ $pt['is_current'] ? '3' : '2' }}"
+                                            class="spline-node"
+                                            style="animation-delay: {{ number_format(0.08 + $idx * 0.08, 2, '.', '') }}s;">
+                                        <title>{{ $pt['bulan'] }}: {{ $nodeVol }} m³</title>
+                                    </circle>
+                                </g>
                             @endforeach
                         </svg>
 
-                        {{-- Tooltip Bulan Aktif --}}
-                        <div class="absolute -top-1 -translate-y-full -translate-x-1/2 spline-tooltip pointer-events-none"
-                             style="left: {{ $tooltipLeftPct }}%;">
+                        {{-- Tooltip Bulan (Muncul tepat di atas posisi titik bundaran) --}}
+                        <div x-show="activeNode"
+                             style="display: none;"
+                             class="absolute pointer-events-none z-10"
+                             :style="activeNode ? `left: ${activeNode.leftPct}%; top: ${activeNode.topPct}%; transform: translate(-50%, calc(-100% - 10px));` : ''">
                             <div class="bg-[#0F172A] text-white px-2.5 py-1 rounded-lg text-xs font-mono font-bold shadow-md flex items-center gap-1.5 border border-[#334155] tabular-nums whitespace-nowrap">
                                 <span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                                <span>{{ number_format($activePoint['volume'], 0, ',', '.') }} m³</span>
+                                <span x-text="activeNode ? `${activeNode.volume} m³` : ''"></span>
                             </div>
+                        </div>
                         </div>
                     </div>
 
